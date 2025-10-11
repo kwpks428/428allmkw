@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { defineAction, configureGenkit } = require('@genkit-ai/core');
 const { defineFlow, run } = require('@genkit-ai/flow');
 
