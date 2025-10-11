@@ -250,7 +250,7 @@ async function getDataBoundaries() {
 
 // --- Genkit Actions ---
 
-ai.defineAction(
+const acquireEpochLockAction = ai.defineAction(
   {
     name: 'acquireEpochLock',
     inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
@@ -267,7 +267,7 @@ ai.defineAction(
   }
 );
 
-const releaseEpochLockAction = defineAction(
+const releaseEpochLockAction = ai.defineAction(
   {
     name: 'releaseEpochLock',
     inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
@@ -280,7 +280,7 @@ const releaseEpochLockAction = defineAction(
   }
 );
 
-const epochAlreadyDoneAction = defineAction(
+const epochAlreadyDoneAction = ai.defineAction(
   {
     name: 'epochAlreadyDone',
     inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
@@ -292,7 +292,7 @@ const epochAlreadyDoneAction = defineAction(
   }
 );
 
-const getFailCountAction = defineAction(
+const getFailCountAction = ai.defineAction(
   {
     name: 'getFailCount',
     inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
@@ -311,7 +311,7 @@ const getFailCountAction = defineAction(
   }
 );
 
-const logFailedEpochAction = defineAction(
+const logFailedEpochAction = ai.defineAction(
   {
     name: 'logFailedEpoch',
     inputSchema: {
@@ -344,7 +344,7 @@ const logFailedEpochAction = defineAction(
   }
 );
 
-const fetchRoundDataAction = defineAction(
+const fetchRoundDataAction = ai.defineAction(
   {
     name: 'fetchRoundData',
     inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
@@ -355,7 +355,7 @@ const fetchRoundDataAction = defineAction(
   }
 );
 
-const calculateBlockRangeAction = defineAction(
+const calculateBlockRangeAction = ai.defineAction(
   {
     name: 'calculateBlockRange',
     inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
@@ -366,7 +366,7 @@ const calculateBlockRangeAction = defineAction(
   }
 );
 
-const fetchContractEventsAction = defineAction(
+const fetchContractEventsAction = ai.defineAction(
   {
     name: 'fetchContractEvents',
     inputSchema: {
@@ -405,7 +405,7 @@ const fetchContractEventsAction = defineAction(
   }
 );
 
-const validateRoundDataAction = defineAction(
+const validateRoundDataAction = ai.defineAction(
   {
     name: 'validateRoundData',
     inputSchema: { type: 'object', properties: { roundData: { type: 'object' }, epoch: { type: 'number' } }, required: ['roundData', 'epoch'] },
@@ -437,7 +437,7 @@ const validateRoundDataAction = defineAction(
   }
 );
 
-const validateBetEventsAction = defineAction(
+const validateBetEventsAction = ai.defineAction(
   {
     name: 'validateBetEvents',
     inputSchema: { type: 'object', properties: { events: { type: 'object' }, roundData: { type: 'object' }, epoch: { type: 'number' } }, required: ['events', 'roundData', 'epoch'] },
@@ -475,7 +475,7 @@ const validateBetEventsAction = defineAction(
   }
 );
 
-const validateClaimEventsAction = defineAction(
+const validateClaimEventsAction = ai.defineAction(
   {
     name: 'validateClaimEvents',
     inputSchema: { type: 'object', properties: { events: { type: 'object' }, epoch: { type: 'number' } }, required: ['events', 'epoch'] },
@@ -504,7 +504,7 @@ const validateClaimEventsAction = defineAction(
   }
 );
 
-const parseRoundDataAction = defineAction(
+const parseRoundDataAction = ai.defineAction(
   {
     name: 'parseRoundData',
     inputSchema: { type: 'object', properties: { epoch: { type: 'number' }, roundData: { type: 'object' } }, required: ['epoch', 'roundData'] },
@@ -536,7 +536,7 @@ const parseRoundDataAction = defineAction(
   }
 );
 
-const parseBetEventsAction = defineAction(
+const parseBetEventsAction = ai.defineAction(
   {
     name: 'parseBetEvents',
     inputSchema: { type: 'object', properties: { events: { type: 'object' } }, required: ['events'] },
@@ -569,7 +569,7 @@ const parseBetEventsAction = defineAction(
   }
 );
 
-const parseClaimEventsAction = defineAction(
+const parseClaimEventsAction = ai.defineAction(
   {
     name: 'parseClaimEvents',
     inputSchema: { type: 'object', properties: { events: { type: 'object' }, epoch: { type: 'number' } }, required: ['events', 'epoch'] },
@@ -586,7 +586,7 @@ const parseClaimEventsAction = defineAction(
   }
 );
 
-const detectMultiClaimsAction = defineAction(
+const detectMultiClaimsAction = ai.defineAction(
   {
     name: 'detectMultiClaims',
     inputSchema: { type: 'array', items: { type: 'object' } }, // Array of parsed claims
@@ -615,7 +615,7 @@ const detectMultiClaimsAction = defineAction(
   }
 );
 
-const verifyRoundBetsStrictAction = defineAction(
+const verifyRoundBetsStrictAction = ai.defineAction(
   {
     name: 'verifyRoundBetsStrict',
     inputSchema: {
@@ -663,7 +663,7 @@ const verifyRoundBetsStrictAction = defineAction(
   }
 );
 
-const writeDataTransactionAction = defineAction(
+const writeDataTransactionAction = ai.defineAction(
   {
     name: 'writeDataTransaction',
     inputSchema: {
@@ -764,7 +764,7 @@ const writeDataTransactionAction = defineAction(
   }
 );
 
-const verifyDatabaseWriteAction = defineAction(
+const verifyDatabaseWriteAction = ai.defineAction(
   {
     name: 'verifyDatabaseWrite',
     inputSchema: {
@@ -800,7 +800,7 @@ const verifyDatabaseWriteAction = defineAction(
 );
 
 // --- Genkit Flow: gk_sync_epoch_flow (Core Sync Logic) ---
-const ai.defineFlow(
+const gk_sync_epoch_flow = ai.defineFlow(
   {
     name: 'gk_sync_epoch_flow',
     inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
@@ -853,7 +853,7 @@ const ai.defineFlow(
 
 // --- Genkit Flows for Orchestration (replacing hisbet.js's three lines) ---
 
-const gk_up_line_flow = defineFlow(
+const gk_up_line_flow = ai.defineFlow(
   {
     name: 'gk_up_line_flow',
     inputSchema: { type: 'object' },
@@ -904,7 +904,7 @@ const gk_up_line_flow = defineFlow(
   }
 );
 
-const gk_down_line_flow = defineFlow(
+const gk_down_line_flow = ai.defineFlow(
   {
     name: 'gk_down_line_flow',
     inputSchema: { type: 'object' },
@@ -962,7 +962,7 @@ const gk_down_line_flow = defineFlow(
   }
 );
 
-const gk_gap_line_flow = defineFlow(
+const gk_gap_line_flow = ai.defineFlow(
   {
     name: 'gk_gap_line_flow',
     inputSchema: { type: 'object' },
