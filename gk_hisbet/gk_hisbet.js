@@ -250,7 +250,7 @@ async function getDataBoundaries() {
 
 // --- Genkit Actions ---
 
-const acquireEpochLockAction = ai.defineAction(
+const acquireEpochLockAction = ai.defineTool(
   {
     name: 'acquireEpochLock',
     inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
@@ -267,7 +267,7 @@ const acquireEpochLockAction = ai.defineAction(
   }
 );
 
-const releaseEpochLockAction = ai.defineAction(
+const releaseEpochLockAction = ai.defineTool(
   {
     name: 'releaseEpochLock',
     inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
@@ -280,7 +280,7 @@ const releaseEpochLockAction = ai.defineAction(
   }
 );
 
-const epochAlreadyDoneAction = ai.defineAction(
+const epochAlreadyDoneAction = ai.defineTool(
   {
     name: 'epochAlreadyDone',
     inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
@@ -292,7 +292,7 @@ const epochAlreadyDoneAction = ai.defineAction(
   }
 );
 
-const getFailCountAction = ai.defineAction(
+const getFailCountAction = ai.defineTool(
   {
     name: 'getFailCount',
     inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
@@ -311,7 +311,7 @@ const getFailCountAction = ai.defineAction(
   }
 );
 
-const logFailedEpochAction = ai.defineAction(
+const logFailedEpochAction = ai.defineTool(
   {
     name: 'logFailedEpoch',
     inputSchema: {
@@ -344,7 +344,7 @@ const logFailedEpochAction = ai.defineAction(
   }
 );
 
-const fetchRoundDataAction = ai.defineAction(
+const fetchRoundDataAction = ai.defineTool(
   {
     name: 'fetchRoundData',
     inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
@@ -355,7 +355,7 @@ const fetchRoundDataAction = ai.defineAction(
   }
 );
 
-const calculateBlockRangeAction = ai.defineAction(
+const calculateBlockRangeAction = ai.defineTool(
   {
     name: 'calculateBlockRange',
     inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
@@ -366,7 +366,7 @@ const calculateBlockRangeAction = ai.defineAction(
   }
 );
 
-const fetchContractEventsAction = ai.defineAction(
+const fetchContractEventsAction = ai.defineTool(
   {
     name: 'fetchContractEvents',
     inputSchema: {
@@ -405,7 +405,7 @@ const fetchContractEventsAction = ai.defineAction(
   }
 );
 
-const validateRoundDataAction = ai.defineAction(
+const validateRoundDataAction = ai.defineTool(
   {
     name: 'validateRoundData',
     inputSchema: { type: 'object', properties: { roundData: { type: 'object' }, epoch: { type: 'number' } }, required: ['roundData', 'epoch'] },
@@ -437,7 +437,7 @@ const validateRoundDataAction = ai.defineAction(
   }
 );
 
-const validateBetEventsAction = ai.defineAction(
+const validateBetEventsAction = ai.defineTool(
   {
     name: 'validateBetEvents',
     inputSchema: { type: 'object', properties: { events: { type: 'object' }, roundData: { type: 'object' }, epoch: { type: 'number' } }, required: ['events', 'roundData', 'epoch'] },
@@ -475,7 +475,7 @@ const validateBetEventsAction = ai.defineAction(
   }
 );
 
-const validateClaimEventsAction = ai.defineAction(
+const validateClaimEventsAction = ai.defineTool(
   {
     name: 'validateClaimEvents',
     inputSchema: { type: 'object', properties: { events: { type: 'object' }, epoch: { type: 'number' } }, required: ['events', 'epoch'] },
@@ -504,7 +504,7 @@ const validateClaimEventsAction = ai.defineAction(
   }
 );
 
-const parseRoundDataAction = ai.defineAction(
+const parseRoundDataAction = ai.defineTool(
   {
     name: 'parseRoundData',
     inputSchema: { type: 'object', properties: { epoch: { type: 'number' }, roundData: { type: 'object' } }, required: ['epoch', 'roundData'] },
@@ -536,7 +536,7 @@ const parseRoundDataAction = ai.defineAction(
   }
 );
 
-const parseBetEventsAction = ai.defineAction(
+const parseBetEventsAction = ai.defineTool(
   {
     name: 'parseBetEvents',
     inputSchema: { type: 'object', properties: { events: { type: 'object' } }, required: ['events'] },
@@ -569,7 +569,7 @@ const parseBetEventsAction = ai.defineAction(
   }
 );
 
-const parseClaimEventsAction = ai.defineAction(
+const parseClaimEventsAction = ai.defineTool(
   {
     name: 'parseClaimEvents',
     inputSchema: { type: 'object', properties: { events: { type: 'object' }, epoch: { type: 'number' } }, required: ['events', 'epoch'] },
@@ -586,7 +586,7 @@ const parseClaimEventsAction = ai.defineAction(
   }
 );
 
-const detectMultiClaimsAction = ai.defineAction(
+const detectMultiClaimsAction = ai.defineTool(
   {
     name: 'detectMultiClaims',
     inputSchema: { type: 'array', items: { type: 'object' } }, // Array of parsed claims
@@ -615,7 +615,7 @@ const detectMultiClaimsAction = ai.defineAction(
   }
 );
 
-const verifyRoundBetsStrictAction = ai.defineAction(
+const verifyRoundBetsStrictAction = ai.defineTool(
   {
     name: 'verifyRoundBetsStrict',
     inputSchema: {
@@ -663,7 +663,7 @@ const verifyRoundBetsStrictAction = ai.defineAction(
   }
 );
 
-const writeDataTransactionAction = ai.defineAction(
+const writeDataTransactionAction = ai.defineTool(
   {
     name: 'writeDataTransaction',
     inputSchema: {
@@ -764,7 +764,7 @@ const writeDataTransactionAction = ai.defineAction(
   }
 );
 
-const verifyDatabaseWriteAction = ai.defineAction(
+const verifyDatabaseWriteAction = ai.defineTool(
   {
     name: 'verifyDatabaseWrite',
     inputSchema: {
