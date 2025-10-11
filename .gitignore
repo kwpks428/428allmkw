@@ -1,0 +1,14 @@
+# Local env files
+.env
+
+# macOS system files
+.DS_Store
+
+# Genkit runtime directory
+.genkit/
+
+# Backup directory
+.BACKUP/
+
+# Node dependencies
+**/node_modules
