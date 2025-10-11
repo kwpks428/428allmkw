@@ -12,11 +12,11 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@genkit-ai/core": "^1.21.0",
-    "@genkit-ai/flow": "^0.5.17",
     "dotenv": "^16.6.1",
     "ethers": "^6.13.4",
     "ioredis": "^5.8.1",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "genkit": "^0.5.2",
+    "@genkit-ai/google-genai": "^1.2.0"
   }
 }

@@ -1,10 +1,10 @@
 require('dotenv').config();
-const { defineAction, configureGenkit } = require('@genkit-ai/core');
-const { defineFlow, run } = require('@genkit-ai/flow');
+const { genkit } = require('genkit');
+const { googleAI } = require('@genkit-ai/google-genai');
 
 // Initialize Genkit
-configureGenkit({
-  plugins: [],
+const ai = genkit({
+  plugins: [googleAI()],
   logLevel: 'info',
   enableTracingAndMetrics: true,
 });
@@ -250,7 +250,7 @@ async function getDataBoundaries() {
 
 // --- Genkit Actions ---
 
-const acquireEpochLockAction = defineAction(
+ai.defineAction(
   {
     name: 'acquireEpochLock',
     inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
@@ -800,7 +800,7 @@ const verifyDatabaseWriteAction = defineAction(
 );
 
 // --- Genkit Flow: gk_sync_epoch_flow (Core Sync Logic) ---
-const gk_sync_epoch_flow = defineFlow(
+const ai.defineFlow(
   {
     name: 'gk_sync_epoch_flow',
     inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
@@ -887,7 +887,7 @@ const gk_up_line_flow = defineFlow(
           }
 
           console.log(`[UpLineFlow] Processing Epoch ${epoch}${failCount > 0 ? ` (retry ${failCount + 1}/${RETRY_MAX})` : ''}`);
-          const result = await run(gk_sync_epoch_flow, { epoch });
+          const result = await gk_sync_epoch_flow({ epoch });
           if (!result.success) {
             console.error(`[UpLineFlow] Failed to sync epoch ${epoch}: ${result.error || result.reason}`);
             await logFailedEpochAction({ epoch, errorMessage: result.error || result.reason, stage: 'upLine' });
@@ -947,7 +947,7 @@ const gk_down_line_flow = defineFlow(
         }
 
         console.log(`[DownLineFlow] Processing Epoch ${targetEpoch}${failCount > 0 ? ` (retry ${failCount + 1}/${RETRY_MAX})` : ''}`);
-        const result = await run(gk_sync_epoch_flow, { epoch: targetEpoch });
+        const result = await gk_sync_epoch_flow({ epoch: targetEpoch });
         if (!result.success) {
           console.error(`[DownLineFlow] Failed to sync epoch ${targetEpoch}: ${result.error || result.reason}`);
           await logFailedEpochAction({ epoch: targetEpoch, errorMessage: result.error || result.reason, stage: 'downLine' });
@@ -1013,7 +1013,7 @@ const gk_gap_line_flow = defineFlow(
 
             console.log(`[GapLineFlow] Filling missing epoch: ${missingEpoch}${failCount > 0 ? ` (retry ${failCount + 1}/${RETRY_MAX})` : ''}`);
             try {
-              const syncResult = await run(gk_sync_epoch_flow, { epoch: missingEpoch });
+              const syncResult = await gk_sync_epoch_flow({ epoch: missingEpoch });
               if (!syncResult.success) {
                 console.error(`[GapLineFlow] Failed to sync missing epoch ${missingEpoch}: ${syncResult.error || syncResult.reason}`);
                 await logFailedEpochAction({ epoch: missingEpoch, errorMessage: syncResult.error || syncResult.reason, stage: 'gapLine' });
@@ -1134,9 +1134,9 @@ async function startHisbetOrchestrator() {
     // or a Genkit server, not directly called in a blocking manner like this.
     // For now, we'll just start them and let them run.
     Promise.all([
-      run(gk_up_line_flow, {}),
-      run(gk_down_line_flow, {}),
-      run(gk_gap_line_flow, {}),
+      gk_up_line_flow({}),
+      gk_down_line_flow({}),
+      gk_gap_line_flow({}),
     ]).catch(err => {
       console.error("❌ One of the Genkit flows failed:", err);
       process.exit(1);
