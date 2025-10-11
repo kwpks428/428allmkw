@@ -1,5 +1,12 @@
-const { defineAction } = require('@genkit-ai/core');
+const { defineAction, configureGenkit } = require('@genkit-ai/core');
 const { defineFlow, run } = require('@genkit-ai/flow');
+
+// Initialize Genkit
+configureGenkit({
+  plugins: [],
+  logLevel: 'info',
+  enableTracingAndMetrics: true,
+});
 const { Pool } = require('pg');
 const { createClient } = require('ioredis');
 const { ethers } = require('ethers');
