@@ -1,6 +1,7 @@
 require('dotenv').config();
 const { genkit } = require('genkit');
 const { googleAI } = require('@genkit-ai/google-genai');
+const { z } = require('zod');
 
 // Initialize Genkit
 const ai = genkit({
@@ -253,8 +254,8 @@ async function getDataBoundaries() {
 const acquireEpochLockAction = ai.defineTool(
   {
     name: 'acquireEpochLock',
-    inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
-    outputSchema: { type: 'object', properties: { success: { type: 'boolean' }, reason: { type: 'string' } } },
+    inputSchema: z.object({ epoch: z.number() }),
+    outputSchema: z.object({ success: z.boolean(), reason: z.string() }),
   },
   async ({ epoch }) => {
     const lk = `processing:epoch:${epoch}`;
@@ -270,8 +271,8 @@ const acquireEpochLockAction = ai.defineTool(
 const releaseEpochLockAction = ai.defineTool(
   {
     name: 'releaseEpochLock',
-    inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
-    outputSchema: { type: 'object', properties: { success: { type: 'boolean' } } },
+    inputSchema: z.object({ epoch: z.number() }),
+    outputSchema: z.object({ success: z.boolean() }),
   },
   async ({ epoch }) => {
     const lk = `processing:epoch:${epoch}`;
@@ -283,8 +284,8 @@ const releaseEpochLockAction = ai.defineTool(
 const epochAlreadyDoneAction = ai.defineTool(
   {
     name: 'epochAlreadyDone',
-    inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
-    outputSchema: { type: 'object', properties: { done: { type: 'boolean' } } },
+    inputSchema: z.object({ epoch: z.number() }),
+    outputSchema: z.object({ done: z.boolean() }),
   },
   async ({ epoch }) => {
     const res = await pgPool.query(`SELECT 1 FROM finepoch WHERE epoch = $1`, [epoch]);
@@ -295,8 +296,8 @@ const epochAlreadyDoneAction = ai.defineTool(
 const getFailCountAction = ai.defineTool(
   {
     name: 'getFailCount',
-    inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
-    outputSchema: { type: 'object', properties: { count: { type: 'number' } } },
+    inputSchema: z.object({ epoch: z.number() }),
+    outputSchema: z.object({ count: z.number() }),
   },
   async ({ epoch }) => {
     try {
@@ -314,16 +315,12 @@ const getFailCountAction = ai.defineTool(
 const logFailedEpochAction = ai.defineTool(
   {
     name: 'logFailedEpoch',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        epoch: { type: 'number' },
-        errorMessage: { type: 'string' },
-        stage: { type: 'string' },
-      },
-      required: ['epoch', 'errorMessage', 'stage'],
-    },
-    outputSchema: { type: 'object', properties: { success: { type: 'boolean' } } },
+    inputSchema: z.object({
+        epoch: z.number(),
+        errorMessage: z.string(),
+        stage: z.string(),
+      }),
+    outputSchema: z.object({ success: z.boolean() }),
   },
   async ({ epoch, errorMessage, stage }) => {
     try {
@@ -347,8 +344,8 @@ const logFailedEpochAction = ai.defineTool(
 const fetchRoundDataAction = ai.defineTool(
   {
     name: 'fetchRoundData',
-    inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
-    outputSchema: { type: 'object' }, // TODO: Define full schema for roundData
+    inputSchema: z.object({ epoch: z.number() }),
+    outputSchema: z.any(),
   },
   async ({ epoch }) => {
     return await getRoundData(epoch);
@@ -358,8 +355,8 @@ const fetchRoundDataAction = ai.defineTool(
 const calculateBlockRangeAction = ai.defineTool(
   {
     name: 'calculateBlockRange',
-    inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
-    outputSchema: { type: 'object', properties: { startBlock: { type: 'number' }, endBlock: { type: 'number' } } },
+    inputSchema: z.object({ epoch: z.number() }),
+    outputSchema: z.object({ startBlock: z.number(), endBlock: z.number() }),
   },
   async ({ epoch }) => {
     return await blockRangeCalc.getBlockRangeForEpoch(epoch);
@@ -369,16 +366,12 @@ const calculateBlockRangeAction = ai.defineTool(
 const fetchContractEventsAction = ai.defineTool(
   {
     name: 'fetchContractEvents',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        epoch: { type: 'number' },
-        startBlock: { type: 'number' },
-        endBlock: { type: 'number' },
-      },
-      required: ['epoch', 'startBlock', 'endBlock'],
-    },
-    outputSchema: { type: 'object' }, // TODO: Define full schema for events
+    inputSchema: z.object({
+        epoch: z.number(),
+        startBlock: z.number(),
+        endBlock: z.number(),
+      }),
+    outputSchema: z.any(),
   },
   async ({ epoch, startBlock, endBlock }) => {
     const f = contract.filters;
@@ -408,8 +401,8 @@ const fetchContractEventsAction = ai.defineTool(
 const validateRoundDataAction = ai.defineTool(
   {
     name: 'validateRoundData',
-    inputSchema: { type: 'object', properties: { roundData: { type: 'object' }, epoch: { type: 'number' } }, required: ['roundData', 'epoch'] },
-    outputSchema: { type: 'object', properties: { success: { type: 'boolean' } } },
+    inputSchema: z.object({ roundData: z.any(), epoch: z.number() }),
+    outputSchema: z.object({ success: z.boolean() }),
   },
   async ({ roundData, epoch }) => {
     const errors = [];
@@ -440,8 +433,8 @@ const validateRoundDataAction = ai.defineTool(
 const validateBetEventsAction = ai.defineTool(
   {
     name: 'validateBetEvents',
-    inputSchema: { type: 'object', properties: { events: { type: 'object' }, roundData: { type: 'object' }, epoch: { type: 'number' } }, required: ['events', 'roundData', 'epoch'] },
-    outputSchema: { type: 'object', properties: { success: { type: 'boolean' } } },
+    inputSchema: z.object({ events: z.any(), roundData: z.any(), epoch: z.number() }),
+    outputSchema: z.object({ success: z.boolean() }),
   },
   async ({ events, roundData, epoch }) => {
     const errors = [];
@@ -478,8 +471,8 @@ const validateBetEventsAction = ai.defineTool(
 const validateClaimEventsAction = ai.defineTool(
   {
     name: 'validateClaimEvents',
-    inputSchema: { type: 'object', properties: { events: { type: 'object' }, epoch: { type: 'number' } }, required: ['events', 'epoch'] },
-    outputSchema: { type: 'object', properties: { success: { type: 'boolean' } } },
+    inputSchema: z.object({ events: z.any(), epoch: z.number() }),
+    outputSchema: z.object({ success: z.boolean() }),
   },
   async ({ events, epoch }) => {
     const errors = [];
@@ -507,8 +500,8 @@ const validateClaimEventsAction = ai.defineTool(
 const parseRoundDataAction = ai.defineTool(
   {
     name: 'parseRoundData',
-    inputSchema: { type: 'object', properties: { epoch: { type: 'number' }, roundData: { type: 'object' } }, required: ['epoch', 'roundData'] },
-    outputSchema: { type: 'object' }, // TODO: Define full schema for parsed round data
+    inputSchema: z.object({ epoch: z.number(), roundData: z.any() }),
+    outputSchema: z.any(),
   },
   async ({ epoch, roundData }) => {
     const lp = parseFloat(ethers.formatUnits(roundData.lockPrice, 8));
@@ -539,8 +532,8 @@ const parseRoundDataAction = ai.defineTool(
 const parseBetEventsAction = ai.defineTool(
   {
     name: 'parseBetEvents',
-    inputSchema: { type: 'object', properties: { events: { type: 'object' } }, required: ['events'] },
-    outputSchema: { type: 'array', items: { type: 'object' } }, // TODO: Define full schema for parsed bets
+    inputSchema: z.object({ events: z.any() }),
+    outputSchema: z.array(z.any()),
   },
   async ({ events }) => {
     const bets = [];
@@ -572,8 +565,8 @@ const parseBetEventsAction = ai.defineTool(
 const parseClaimEventsAction = ai.defineTool(
   {
     name: 'parseClaimEvents',
-    inputSchema: { type: 'object', properties: { events: { type: 'object' }, epoch: { type: 'number' } }, required: ['events', 'epoch'] },
-    outputSchema: { type: 'array', items: { type: 'object' } }, // TODO: Define full schema for parsed claims
+    inputSchema: z.object({ events: z.any(), epoch: z.number() }),
+    outputSchema: z.array(z.any()),
   },
   async ({ events, epoch }) => {
     return events.claim.map(e => ({
@@ -589,8 +582,8 @@ const parseClaimEventsAction = ai.defineTool(
 const detectMultiClaimsAction = ai.defineTool(
   {
     name: 'detectMultiClaims',
-    inputSchema: { type: 'array', items: { type: 'object' } }, // Array of parsed claims
-    outputSchema: { type: 'array', items: { type: 'object' } }, // Array of multi-claims
+    inputSchema: z.array(z.any()),
+    outputSchema: z.array(z.any()),
   },
   async (claims) => {
     const ws = new Map();
@@ -618,16 +611,12 @@ const detectMultiClaimsAction = ai.defineTool(
 const verifyRoundBetsStrictAction = ai.defineTool(
   {
     name: 'verifyRoundBetsStrict',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        round: { type: 'object' }, // Parsed round data
-        bets: { type: 'array', items: { type: 'object' } }, // Parsed bets
-        epoch: { type: 'number' },
-      },
-      required: ['round', 'bets', 'epoch'],
-    },
-    outputSchema: { type: 'object', properties: { success: { type: 'boolean' } } },
+    inputSchema: z.object({
+        round: z.any(),
+        bets: z.array(z.any()),
+        epoch: z.number(),
+      }),
+    outputSchema: z.object({ success: z.boolean() }),
   },
   async ({ round, bets, epoch }) => {
     const errors = [];
@@ -666,17 +655,13 @@ const verifyRoundBetsStrictAction = ai.defineTool(
 const writeDataTransactionAction = ai.defineTool(
   {
     name: 'writeDataTransaction',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        round: { type: 'object' },
-        bets: { type: 'array', items: { type: 'object' } },
-        claims: { type: 'array', items: { type: 'object' } },
-        multiClaims: { type: 'array', items: { type: 'object' } },
-      },
-      required: ['round', 'bets', 'claims', 'multiClaims'],
-    },
-    outputSchema: { type: 'object', properties: { success: { type: 'boolean' } } },
+    inputSchema: z.object({
+        round: z.any(),
+        bets: z.array(z.any()),
+        claims: z.array(z.any()),
+        multiClaims: z.array(z.any()),
+      }),
+    outputSchema: z.object({ success: z.boolean() }),
   },
   async ({ round, bets, claims, multiClaims }) => {
     const client = await pgPool.connect();
@@ -767,16 +752,12 @@ const writeDataTransactionAction = ai.defineTool(
 const verifyDatabaseWriteAction = ai.defineTool(
   {
     name: 'verifyDatabaseWrite',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        epoch: { type: 'number' },
-        round: { type: 'object' },
-        bets: { type: 'array', items: { type: 'object' } },
-      },
-      required: ['epoch', 'round', 'bets'],
-    },
-    outputSchema: { type: 'object', properties: { success: { type: 'boolean' } } },
+    inputSchema: z.object({
+        epoch: z.number(),
+        round: z.any(),
+        bets: z.array(z.any()),
+      }),
+    outputSchema: z.object({ success: z.boolean() }),
   },
   async ({ epoch, round, bets }) => {
     const errors = [];
@@ -803,8 +784,8 @@ const verifyDatabaseWriteAction = ai.defineTool(
 const gk_sync_epoch_flow = ai.defineFlow(
   {
     name: 'gk_sync_epoch_flow',
-    inputSchema: { type: 'object', properties: { epoch: { type: 'number' } }, required: ['epoch'] },
-    outputSchema: { type: 'object', properties: { success: { type: 'boolean' }, epoch: { type: 'number' } } },
+    inputSchema: z.object({ epoch: z.number() }),
+    outputSchema: z.object({ success: z.boolean(), epoch: z.number() }),
   },
   async (input) => {
     const { epoch } = input;
@@ -856,8 +837,8 @@ const gk_sync_epoch_flow = ai.defineFlow(
 const gk_up_line_flow = ai.defineFlow(
   {
     name: 'gk_up_line_flow',
-    inputSchema: { type: 'object' },
-    outputSchema: { type: 'object', properties: { success: { type: 'boolean' } } },
+    inputSchema: z.object({}),
+    outputSchema: z.object({ success: z.boolean() }),
   },
   async () => {
     console.log('[UpLineFlow] Starting...');
@@ -907,8 +888,8 @@ const gk_up_line_flow = ai.defineFlow(
 const gk_down_line_flow = ai.defineFlow(
   {
     name: 'gk_down_line_flow',
-    inputSchema: { type: 'object' },
-    outputSchema: { type: 'object', properties: { success: { type: 'boolean' } } },
+    inputSchema: z.object({}),
+    outputSchema: z.object({ success: z.boolean() }),
   },
   async () => {
     console.log('[DownLineFlow] Starting...');
@@ -965,8 +946,8 @@ const gk_down_line_flow = ai.defineFlow(
 const gk_gap_line_flow = ai.defineFlow(
   {
     name: 'gk_gap_line_flow',
-    inputSchema: { type: 'object' },
-    outputSchema: { type: 'object', properties: { success: { type: 'boolean' } } },
+    inputSchema: z.object({}),
+    outputSchema: z.object({ success: z.boolean() }),
   },
   async () => {
     console.log('[GapLineFlow] Starting...');

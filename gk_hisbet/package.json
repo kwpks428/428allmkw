@@ -17,6 +17,7 @@
     "ioredis": "^5.8.1",
     "pg": "^8.16.3",
     "genkit": "^1.21.0",
-    "@genkit-ai/google-genai": "^1.21.0"
+    "@genkit-ai/google-genai": "^1.21.0",
+    "zod": "^3.23.8"
   }
 }
