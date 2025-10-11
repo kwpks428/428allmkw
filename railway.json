@@ -2,11 +2,10 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "rootDirectory": "./gk_hisbet",
-    "buildCommand": "npm install"
+    "buildCommand": "cd gk_hisbet && npm install"
   },
   "deploy": {
-    "startCommand": "npm start",
+    "startCommand": "cd gk_hisbet && npm start",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
