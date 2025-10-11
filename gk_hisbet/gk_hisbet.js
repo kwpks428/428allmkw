@@ -1092,8 +1092,7 @@ async function setupRedisSubscription() {
     console.error('❌ Redis 訂閱錯誤:', err.message);
   });
 
-  await redisSubscriber.connect();
-  console.log('✅ Redis Subscriber 連接成功');
+
 }
 
 // Main entry point for the orchestrator
@@ -1102,8 +1101,7 @@ async function startHisbetOrchestrator() {
 
   try {
     // Connect Redis Publisher
-    await redisPublisher.connect();
-    console.log('✅ Redis Publisher 連接成功');
+
 
     // Test DB connection
     const client = await pgPool.connect();
