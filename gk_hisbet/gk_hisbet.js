@@ -1,4 +1,5 @@
-const { defineFlow, defineAction, run } = require('@genkit-ai/flow');
+const { defineAction } = require('@genkit-ai/core');
+const { defineFlow, run } = require('@genkit-ai/flow');
 const { Pool } = require('pg');
 const { createClient } = require('ioredis');
 const { ethers } = require('ethers');
