@@ -7,6 +7,16 @@ const NEW_DB_URL = 'postgresql://postgres:eBCe6c4DCag4f5D3f2Gafgdf2FBDa6Be@switc
 const oldPool = new Pool({ connectionString: OLD_DB_URL });
 const newPool = new Pool({ connectionString: NEW_DB_URL });
 
+// Helper function to get current Taipei time as a string
+function getCurrentTaipeiTime() {
+  return new Date().toLocaleString('sv-SE', {
+    timeZone: 'Asia/Taipei',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false
+  });
+}
+
 async function main() {
   console.log('🚀 開始資料庫轉移...');
 
@@ -68,19 +78,36 @@ async function main() {
 }
 
 async function processEpoch(epoch, oldClient, newClient) {
-  const roundRes = await oldClient.query('SELECT * FROM round WHERE epoch = $1', [epoch]);
+  // 1. Fetch and simultaneously format data from the old database using SQL
+  const roundQuery = `
+    SELECT 
+      epoch, 
+      TO_CHAR(start_time AT TIME ZONE 'Asia/Taipei', 'YYYY-MM-DD HH24:MI:SS') as start_time,
+      TO_CHAR(lock_time AT TIME ZONE 'Asia/Taipei', 'YYYY-MM-DD HH24:MI:SS') as lock_time,
+      TO_CHAR(close_time AT TIME ZONE 'Asia/Taipei', 'YYYY-MM-DD HH24:MI:SS') as close_time,
+      lock_price, close_price, result, total_bet_amount, up_bet_amount, down_bet_amount, up_payout, down_payout
+    FROM round WHERE epoch = $1`;
+  const roundRes = await oldClient.query(roundQuery, [epoch]);
+
   if (roundRes.rows.length === 0) {
     return { success: false, reason: '找不到局次資料。' };
   }
   const roundData = roundRes.rows[0];
 
-  const hisbetRes = await oldClient.query('SELECT * FROM hisbet WHERE epoch = $1', [epoch]);
+  const hisbetQuery = `
+    SELECT
+      tx_hash, epoch, 
+      TO_CHAR(bet_time AT TIME ZONE 'Asia/Taipei', 'YYYY-MM-DD HH24:MI:SS') as bet_time,
+      wallet_address, bet_direction, bet_amount, result, block_number
+    FROM hisbet WHERE epoch = $1`;
+  const hisbetRes = await oldClient.query(hisbetQuery, [epoch]);
   const hisbetData = hisbetRes.rows;
 
+  // Claim table has no TIMESTAMPTZ columns to format
   const claimRes = await oldClient.query('SELECT * FROM claim WHERE epoch = $1', [epoch]);
   const claimData = claimRes.rows;
 
-  // De-duplicate claim data based on the PHYSICAL PRIMARY KEY to prevent DB errors.
+  // 2. De-duplicate claim data based on the PHYSICAL PRIMARY KEY to prevent DB errors.
   const uniqueClaims = [];
   const physicalKeySeen = new Set();
   for (const claim of claimData) {
@@ -91,43 +118,31 @@ async function processEpoch(epoch, oldClient, newClient) {
     }
   }
 
+  // 3. Perform validations
   const roundValidation = validateRound(roundData);
   if (!roundValidation.valid) {
     return { success: false, reason: `回合資料無效: ${roundValidation.reason}` };
   }
-
   const hisbetValidation = validateHisbet(hisbetData, roundData);
   if (!hisbetValidation.valid) {
     return { success: false, reason: `下注資料無效: ${hisbetValidation.reason}` };
   }
-
   const claimValidation = validateClaim(uniqueClaims);
   if (!claimValidation.valid) {
     return { success: false, reason: `領獎資料無效: ${claimValidation.reason}` };
   }
 
-  const formattedRoundData = {
-    ...roundData,
-    start_time: toTaipeiTimeString(roundData.start_time),
-    lock_time: toTaipeiTimeString(roundData.lock_time),
-    close_time: toTaipeiTimeString(roundData.close_time),
-  };
-
-  const formattedHisbetData = hisbetData.map(bet => ({
-    ...bet,
-    bet_time: toTaipeiTimeString(bet.bet_time),
-  }));
-
+  // 4. Proceed with transactional insert (data is already formatted)
   try {
     await newClient.query('BEGIN');
 
-    const roundCols = Object.keys(formattedRoundData).join(', ');
-    const roundVals = Object.values(formattedRoundData);
+    const roundCols = Object.keys(roundData).join(', ');
+    const roundVals = Object.values(roundData);
     const roundPh = roundVals.map((_, i) => `$${i + 1}`).join(', ');
     await newClient.query(`INSERT INTO round (${roundCols}) VALUES (${roundPh})`, roundVals);
 
-    if (formattedHisbetData.length > 0) {
-      for (const bet of formattedHisbetData) {
+    if (hisbetData.length > 0) {
+      for (const bet of hisbetData) {
         const betCols = Object.keys(bet).join(', ');
         const betVals = Object.values(bet);
         const betPh = betVals.map((_, i) => `$${i + 1}`).join(', ');
@@ -154,7 +169,7 @@ async function processEpoch(epoch, oldClient, newClient) {
       }
     }
 
-    await newClient.query('INSERT INTO finepoch (epoch, processed_at) VALUES ($1, $2)', [epoch, toTaipeiTimeString(new Date())]);
+    await newClient.query('INSERT INTO finepoch (epoch, processed_at) VALUES ($1, $2)', [epoch, getCurrentTaipeiTime()]);
 
     await newClient.query('COMMIT');
     return { success: true };
@@ -234,20 +249,6 @@ function regenerateMultiClaimForEpoch(epoch, claimData) {
   }
 
   return multiClaims;
-}
-
-function toTaipeiTimeString(ts) {
-  if (ts === null || ts === undefined) return null;
-
-  const date = new Date(ts);
-  if (isNaN(date.getTime())) return null;
-
-  return date.toLocaleString('sv-SE', {
-    timeZone: 'Asia/Taipei',
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-    hour12: false
-  });
 }
 
 function renderProgressBar(current, total, success, skipped) {
