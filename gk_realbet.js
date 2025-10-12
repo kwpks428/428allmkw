@@ -5,6 +5,7 @@ const { genkit, z } = require("genkit");
 
 const { ethers } = require("ethers");
 const { Pool } = require("pg");
+const { createClient } = require("ioredis");
 const fs = require("fs");
 
 // 1. GENKIT INITIALIZATION
@@ -23,6 +24,7 @@ const ai = genkit({
 if (!process.env.DATABASE_URL) throw new Error("Missing DATABASE_URL");
 if (!process.env.WSS_URL) throw new Error("Missing WSS_URL");
 if (!process.env.CONTRACT_ADDR) throw new Error("Missing CONTRACT_ADDR");
+if (!process.env.REDIS_URL) throw new Error("Missing REDIS_URL");
 
 const WSS_URL = process.env.WSS_URL;
 const CONTRACT_ADDR = process.env.CONTRACT_ADDR;
@@ -34,6 +36,16 @@ const pool = new Pool({
   max: 10,
   idleTimeoutMillis: 30000,
 });
+
+// Redis Client for real-time publishing
+const redisPublisher = createClient(process.env.REDIS_URL, {
+  maxRetriesPerRequest: 3,
+  retryStrategy(times) {
+    if (times > 3) return null;
+    return Math.min(times * 1000, 3000);
+  }
+});
+redisPublisher.on('error', (err) => console.error('Redis Publisher Error:', err.message));
 
 // 3. GENKIT FLOW DEFINITION
 // ========================================
@@ -74,6 +86,29 @@ const realtimeBetFlow = ai.defineFlow(
       
       await client.query(query, params);
       console.log(`[Genkit Flow] 💾 資料庫寫入成功: ${bet.tx_hash}`);
+      
+      // 🚀 推送到前端 (Redis Pub/Sub)
+      const frontendData = {
+        type: 'realtime_bet',
+        timestamp: new Date().toISOString(),
+        data: {
+          epoch: bet.epoch,
+          direction: bet.bet_direction,
+          amount: bet.bet_amount,
+          wallet: bet.wallet_address.toLowerCase(),
+          tx_hash: bet.tx_hash,
+          block_number: bet.block_number
+        }
+      };
+      
+      try {
+        await redisPublisher.publish('realtime_bets_channel', JSON.stringify(frontendData));
+        console.log(`[Genkit Flow] 📡 前端推送成功: ${bet.bet_direction} ${bet.bet_amount} BNB`);
+      } catch (publishError) {
+        console.error(`[Genkit Flow] ⚠️ 前端推送失敗:`, publishError.message);
+        // 不影響主流程，繼續執行
+      }
+      
       return { success: true, tx_hash: bet.tx_hash };
 
     } catch (error) {
@@ -248,4 +283,12 @@ async function main() {
   }
 }
 
-main();
+// Export for external use
+module.exports = {
+  realtimeBetFlow,
+};
+
+// If this script is run directly (e.g., `node gk_realbet.js`)
+if (require.main === module) {
+  main();
+}
