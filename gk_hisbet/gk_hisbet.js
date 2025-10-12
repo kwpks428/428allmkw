@@ -1,5 +1,7 @@
 require('dotenv').config();
+const { genkit } = require('genkit');
 const { googleAI } = require('@genkit-ai/google-genai');
+const { z } = require('zod');
 
 // Initialize Genkit
 const ai = genkit({
