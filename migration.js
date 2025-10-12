@@ -26,7 +26,7 @@ async function main() {
 
   try {
     console.log('正在清空新資料庫的目標資料表...');
-    await newClient.query('TRUNCATE TABLE round, hisbet, claim, multi_claim, finepoch RESTART IDENTITY');
+    await newClient.query('TRUNCATE TABLE round, hisbet, claim, multi_claim, finepoch, failed_epochs RESTART IDENTITY');
     console.log('✅ 目標資料表已清空。');
 
     console.log('正在從舊資料庫讀取所有局次...');
@@ -45,7 +45,8 @@ async function main() {
           successCount++;
         } else {
           skippedCount++;
-          console.warn(`\n- 局次 ${epoch}: 已略過。原因: ${reason}`);
+          console.warn(`
+- 局次 ${epoch}: 已略過。原因: ${reason}`);
         }
 
         renderProgressBar(i + 1, epochs.length, successCount, skippedCount);
@@ -78,16 +79,14 @@ async function main() {
 }
 
 async function processEpoch(epoch, oldClient, newClient) {
-  // 1. Fetch and simultaneously format data from the old database using SQL
-  const roundQuery = `
+  const roundRes = await oldClient.query(`
     SELECT 
       epoch, 
       TO_CHAR(start_time AT TIME ZONE 'Asia/Taipei', 'YYYY-MM-DD HH24:MI:SS') as start_time,
       TO_CHAR(lock_time AT TIME ZONE 'Asia/Taipei', 'YYYY-MM-DD HH24:MI:SS') as lock_time,
       TO_CHAR(close_time AT TIME ZONE 'Asia/Taipei', 'YYYY-MM-DD HH24:MI:SS') as close_time,
       lock_price, close_price, result, total_bet_amount, up_bet_amount, down_bet_amount, up_payout, down_payout
-    FROM round WHERE epoch = $1`;
-  const roundRes = await oldClient.query(roundQuery, [epoch]);
+    FROM round WHERE epoch = $1`, [epoch]);
 
   if (roundRes.rows.length === 0) {
     return { success: false, reason: '找不到局次資料。' };
@@ -103,11 +102,9 @@ async function processEpoch(epoch, oldClient, newClient) {
   const hisbetRes = await oldClient.query(hisbetQuery, [epoch]);
   const hisbetData = hisbetRes.rows;
 
-  // Claim table has no TIMESTAMPTZ columns to format
   const claimRes = await oldClient.query('SELECT * FROM claim WHERE epoch = $1', [epoch]);
   const claimData = claimRes.rows;
 
-  // 2. De-duplicate claim data based on the PHYSICAL PRIMARY KEY to prevent DB errors.
   const uniqueClaims = [];
   const physicalKeySeen = new Set();
   for (const claim of claimData) {
@@ -118,21 +115,21 @@ async function processEpoch(epoch, oldClient, newClient) {
     }
   }
 
-  // 3. Perform validations
   const roundValidation = validateRound(roundData);
   if (!roundValidation.valid) {
     return { success: false, reason: `回合資料無效: ${roundValidation.reason}` };
   }
+
   const hisbetValidation = validateHisbet(hisbetData, roundData);
   if (!hisbetValidation.valid) {
     return { success: false, reason: `下注資料無效: ${hisbetValidation.reason}` };
   }
+
   const claimValidation = validateClaim(uniqueClaims);
   if (!claimValidation.valid) {
     return { success: false, reason: `領獎資料無效: ${claimValidation.reason}` };
   }
 
-  // 4. Proceed with transactional insert (data is already formatted)
   try {
     await newClient.query('BEGIN');
 
