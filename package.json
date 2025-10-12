@@ -1,0 +1,22 @@
+{
+  "name": "gk_realbet",
+  "version": "1.0.0",
+  "description": "Genkit-based real-time bet processor",
+  "main": "gk_realbet.js",
+  "scripts": {
+    "start": "node gk_realbet.js"
+  },
+  "keywords": [
+    "genkit"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@genkit-ai/google-genai": "^1.21.0",
+    "dotenv": "^17.2.3",
+    "ethers": "^6.15.0",
+    "genkit": "^1.21.0",
+    "pg": "^8.16.3",
+    "zod": "^3.25.76"
+  }
+}
