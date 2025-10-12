@@ -18,7 +18,7 @@ const fs = require('fs');
 if (!process.env.DATABASE_URL) throw new Error("Missing DATABASE_URL");
 if (!process.env.RPC_URL) throw new Error("Missing RPC_URL");
 if (!process.env.CONTRACT_ADDR) throw new Error("Missing CONTRACT_ADDR");
-if (!""redis://default:stgjkDMbNQhCojMcCIXNlVtzpJbNuBdW@redis.railway.internal:6379"") throw new Error("Missing REDIS_URL");
+if (!process.env.REDIS_URL) throw new Error("Missing REDIS_URL");
 
 const RETRY_MAX = parseInt(process.env.RETRY_MAX) || 3;
 const CACHE_MAX = parseInt(process.env.CACHE_MAX) || 5000;
@@ -35,7 +35,7 @@ const pgPool = new Pool({
 
 // Initialize Redis Client for publishing (used by actions and orchestrator)
 const redisPublisher = createClient({
-  url: ""redis://default:stgjkDMbNQhCojMcCIXNlVtzpJbNuBdW@redis.railway.internal:6379"",
+  url: process.env.REDIS_URL,
   maxRetriesPerRequest: 3,
   retryStrategy(times) {
     if (times > 3) return null;
@@ -1023,7 +1023,7 @@ let redisSubscriber;
 
 async function setupRedisSubscription() {
   redisSubscriber = createClient({
-    url: ""redis://default:stgjkDMbNQhCojMcCIXNlVtzpJbNuBdW@redis.railway.internal:6379"",
+    url: process.env.REDIS_URL,
     maxRetriesPerRequest: 3,
     retryStrategy(times) {
       if (times > 3) return null;
