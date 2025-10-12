@@ -34,6 +34,7 @@ const pgPool = new Pool({
 });
 
 // Initialize Redis Client for publishing (used by actions and orchestrator)
+console.log("[Diag] Publisher REDIS_URL:", process.env.REDIS_URL);
 const redisPublisher = createClient({
   url: process.env.REDIS_URL,
   maxRetriesPerRequest: 3,
@@ -1022,6 +1023,7 @@ const gk_gap_line_flow = ai.defineFlow(
 let redisSubscriber;
 
 async function setupRedisSubscription() {
+  console.log("[Diag] Subscriber REDIS_URL:", process.env.REDIS_URL);
   redisSubscriber = createClient({
     url: process.env.REDIS_URL,
     maxRetriesPerRequest: 3,
