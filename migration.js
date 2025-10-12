@@ -45,7 +45,7 @@ async function main() {
           successCount++;
         } else {
           skippedCount++;
-          // console.warn(`- 局次 ${epoch}: 已略過。原因: ${reason}`);
+          console.warn(`\n- 局次 ${epoch}: 已略過。原因: ${reason}`);
         }
 
         renderProgressBar(i + 1, epochs.length, successCount, skippedCount);
