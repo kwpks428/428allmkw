@@ -1,13 +1,15 @@
 {
-  "name": "gk_realbet",
+  "name": "428allmkw",
   "version": "1.0.0",
-  "description": "Genkit-based real-time bet processor",
-  "main": "index.js",
+  "description": "Main monorepo for gk services",
   "scripts": {
-    "start": "node gk_realbet.js"
+    "start:hisbet": "cd gk_hisbet && npm start",
+    "start:realbet": "cd gk_realbet && npm start"
   },
   "keywords": [
-    "genkit"
+    "genkit",
+    "blockchain",
+    "betting"
   ],
   "author": "",
   "license": "ISC",
@@ -16,7 +18,6 @@
     "dotenv": "^17.2.3",
     "ethers": "^6.15.0",
     "genkit": "^1.21.0",
-    "ioredis": "^5.8.1",
     "pg": "^8.16.3",
     "zod": "^3.25.76"
   }

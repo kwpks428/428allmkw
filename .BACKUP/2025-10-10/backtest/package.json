@@ -1,0 +1,21 @@
+{
+  "name": "bsc-prediction-backtest",
+  "version": "1.0.0",
+  "description": "BSC Prediction Market Backtesting Service",
+  "main": "backtest.js",
+  "scripts": {
+    "start": "node backtest.js",
+    "benchmark": "node tx_benchmark.js"
+  },
+  "dependencies": {
+    "colors": "^1.4.0",
+    "dotenv": "^16.6.1",
+    "ethers": "^6.13.4",
+    "ioredis": "^5.4.2",
+    "pg": "^8.13.1",
+    "redis": "^4.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

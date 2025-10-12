@@ -1,0 +1,2584 @@
+<!DOCTYPE html>
+<!-- VERSION: 2025-01-06-DEBUG -->
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>即時下注監控系統 v3.1 - 調試版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            background: #000;
+            color: #0f0;
+            font-size: 14px;
+            line-height: 1.2;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: calc(100vh - 40px);
+        }
+
+        .header {
+            border: 1px solid #333;
+            padding: 15px;
+            margin-bottom: 20px;
+            background: #111;
+        }
+
+        .round-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .round-number {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ff0;
+        }
+
+        .lock-time {
+            color: #f80;
+            cursor: pointer;
+        }
+
+        .lock-time:hover {
+            opacity: 0.8;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            background: #111;
+            border: 1px solid #333;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .stat-label {
+            color: #888;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .stat-value.up {
+            color: #77dd77;
+        }
+
+        .stat-value.down {
+            color: #ff6666;
+        }
+
+        .bets-container {
+            border: 1px solid #333;
+            background: #111;
+            height: 600px;
+            overflow: auto;
+            font-size: 12px;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .bets-header {
+            background: #222;
+            padding: 10px;
+            border-bottom: 1px solid #333;
+            display: grid;
+            grid-template-columns: 60px 50px minmax(360px, 1fr) 56px 80px minmax(420px, 2fr);
+            gap: 8px;
+            font-weight: bold;
+            color: #fff;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .bets-header > div {
+            text-align: center;
+        }
+
+        .bets-header > div:nth-child(3) {
+            text-align: left;
+        }
+
+        .bet-item {
+            border-bottom: 1px solid #333;
+            background: #111;
+            padding: 8px 10px;
+            display: grid;
+            grid-template-columns: 60px 50px minmax(360px, 1fr) 56px 80px minmax(420px, 2fr);
+            gap: 8px;
+            align-items: center;
+            height: 65px;
+            opacity: 1;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .bet-item:nth-child(even) {
+            background: #0a0a0a;
+        }
+
+        /* 新下注項目淡入動畫 */
+        .bet-item.fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-5px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 數據更新時的平滑過渡 */
+        .stat-value {
+            transition: all 0.3s ease-in-out;
+        }
+
+        .stat-value.updating {
+            opacity: 0.5;
+        }
+
+        /* 有得分數據與無數據的分隔線 */
+        .score-separator {
+            height: 3px;
+            background: linear-gradient(90deg,
+                transparent 0%,
+                #FFD700 10%,
+                #FFD700 90%,
+                transparent 100%);
+            margin: 5px 0;
+            position: relative;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+        }
+
+        .score-separator::before {
+            content: '▼ 以下無得分數據 ▼';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            background: #111;
+            padding: 2px 15px;
+            color: #FFD700;
+            font-size: 11px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .bet-time {
+            color: #888;
+            text-align: center;
+        }
+
+        .bet-epoch {
+            color: #ff0;
+            text-align: center;
+        }
+
+        .bet-wallet {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            font-family: inherit;
+            color: #888;
+            word-break: break-all;
+            font-size: 12px;
+            line-height: 1.1;
+            cursor: pointer;
+        }
+
+        .bet-item.hl-1 { outline: 2px solid #00f0a8; box-shadow: inset 0 0 8px rgba(0,240,168,0.4); }
+        .bet-item.hl-2 { outline: 2px solid #b0003a; box-shadow: inset 0 0 8px rgba(176,0,58,0.35); }
+        .bet-item.hl-3 { outline: 2px solid #ffae00; box-shadow: inset 0 0 8px rgba(255,174,0,0.35); }
+        .bet-item.hl-4 { outline: 2px solid #8a2be2; box-shadow: inset 0 0 8px rgba(138,43,226,0.4); }
+        .bet-item.hl-5 { outline: 2px solid #1e90ff; box-shadow: inset 0 0 8px rgba(30,144,255,0.4); }
+        .bet-item.hl-6 { outline: 2px solid #ff69b4; box-shadow: inset 0 0 8px rgba(255,105,180,0.4); }
+        .bet-item.hl-1, .bet-item.hl-2, .bet-item.hl-3, .bet-item.hl-4, .bet-item.hl-5, .bet-item.hl-6 { border-radius: 4px; }
+
+        .bet-wallet.multi-claim-below-5 {
+            color: #0af !important;
+            font-weight: bold !important;
+        }
+
+        .bet-wallet.multi-claim-above-5 {
+            color: #9370db !important;
+            font-weight: bold !important;
+        }
+
+        .bet-direction {
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .bet-direction.up {
+            color: #77dd77;
+        }
+
+        .bet-direction.down {
+            color: #ff6666;
+        }
+
+        .bet-amount {
+            text-align: center;
+            color: #ff0;
+        }
+
+        .bet-amount.small {
+            color: #888;
+            font-weight: normal;
+        }
+
+        .bet-amount.medium {
+            color: #ff0;
+            font-weight: normal;
+        }
+
+        .bet-amount.large {
+            color: #ffa500;
+            font-weight: normal;
+        }
+
+        .bet-amount.huge {
+            color: #f00;
+            font-weight: bold;
+        }
+
+        .connection-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .connection-status.connected {
+            background: #0a0;
+            color: #000;
+        }
+
+        .connection-status.disconnected {
+            background: #a00;
+            color: #fff;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .epoch-nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .nav-btn {
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 12px;
+        }
+        
+        .nav-btn:hover:not(:disabled) {
+            background: #555;
+        }
+        
+        .nav-btn:disabled {
+            background: #222;
+            color: #666;
+            cursor: not-allowed;
+        }
+        
+        .epoch-display {
+            text-align: center;
+        }
+
+        .bet-item.new-bet {
+            animation: slideIn 0.5s ease-out;
+            border-left: 4px solid #FFD700;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .wallet-analysis {
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        .wallet-analysis .chart-box {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .wallet-analysis svg {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain;
+            position: static;
+        }
+
+        /* 回測表格樣式 */
+        .backtest-section {
+            margin-bottom: 20px;
+            border: 1px solid #333;
+            background: #111;
+            padding: 15px;
+        }
+
+        .backtest-header {
+            font-size: 16px;
+            font-weight: bold;
+            color: #FFD700;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .backtest-table-container {
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+
+        .backtest-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 1px;
+            font-size: 11px;
+            background: #000;
+        }
+
+        .backtest-table td {
+            padding: 6px 4px;
+            text-align: center;
+            background: #1a1a1a;
+            height: 32px;
+            vertical-align: middle;
+        }
+
+        /* 第一列：策略名稱 */
+        .backtest-table td.strategy-name {
+            width: 140px;
+            font-weight: bold;
+            text-align: left;
+            padding-left: 10px;
+            color: #aaa;
+            white-space: nowrap;
+        }
+
+        /* 第二列：勝率 */
+        .backtest-table td.strategy-winrate {
+            width: 90px;
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        /* 局次結果列 */
+        .backtest-table td.epoch-result {
+            width: 24px;
+            min-width: 24px;
+            padding: 4px 2px;
+            transition: background-color 0.3s ease;
+        }
+
+        /* 勝率顏色 */
+        .winrate-high { color: #00FF00; }
+        .winrate-medium { color: #FFFF00; }
+        .winrate-low { color: #FF6666; }
+
+        /* 預測圓圈 */
+        .prediction-circle {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        .prediction-up {
+            background: #4CAF50;
+        }
+
+        .prediction-down {
+            background: #F44336;
+        }
+
+        .prediction-none {
+            background: transparent;
+            border: 1px solid #333;
+        }
+
+        /* 結果背景色 */
+        .result-bg-up {
+            background: #2d5a2d !important;
+        }
+
+        .result-bg-down {
+            background: #5a2d2d !important;
+        }
+
+        /* 無數據 */
+        .no-prediction {
+            color: #444;
+            font-size: 9px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="round-info">
+                <div class="epoch-nav">
+                    <button class="nav-btn" id="prevEpoch">← 上一局</button>
+                    <div class="epoch-display">
+                        <div class="round-number">局次： <span id="currentRound">--</span></div>
+                        <div style="color: #888; font-size: 12px;" id="epochMode">即時模式</div>
+                    </div>
+                    <button class="nav-btn" id="nextEpoch">下一局 →</button>
+                </div>
+
+                <!-- 智能預測系統 -->
+                <div style="display: flex; flex-direction: column; gap: 8px; background: #1a1a1a; padding: 10px; border-radius: 6px; border: 1px solid #333;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <!-- 主要預測 -->
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="color: #FFD700; font-size: 16px; font-weight: bold;">🔮 AI預測</div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="color: #aaa; font-size: 14px;">動量策略:</span>
+                                <span id="momentumPrediction" style="color: #888; font-size: 18px; font-weight: bold;">--</span>
+                            </div>
+                            <div id="predictionConfidence" style="font-size: 12px; color: #666; background: #2a2a2a; padding: 2px 6px; border-radius: 3px;">--</div>
+                        </div>
+                        
+                        <!-- 策略效能 -->
+                        <div style="display: flex; gap: 12px; font-size: 12px;">
+                            <div title="動量策略歷史勝率">
+                                <span style="color: #aaa;">動量:</span>
+                                <span id="momentumRate" style="color: #0f0; font-weight: bold;">--</span>
+                            </div>
+                            <div title="跟隨最高勝率策略">
+                                <span style="color: #aaa;">跟隨:</span>
+                                <span id="followBestRate" style="color: #888; font-weight: bold;">--</span>
+                            </div>
+                            <div title="反向最低勝率策略">
+                                <span style="color: #aaa;">反向:</span>
+                                <span id="reverseLowRate" style="color: #888; font-weight: bold;">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 預測理由 -->
+                    <div id="momentumReasons" style="font-size: 12px; color: #aaa; display: none;">
+                        理由：<span id="momentumReasonsText">--</span>
+                    </div>
+
+                    <!-- 交易延遲卡片 -->
+                    <div id="txBenchmark" style="display: flex; gap: 12px; font-size: 12px; color: #888;">
+                        <div style="color: #9CDCFE;">⏱ 交易延遲</div>
+                        <div>P50: <span id="txP50">--</span> ms</div>
+                        <div>P90: <span id="txP90">--</span> ms</div>
+                        <div>建議 δ: <span id="txDelta">--</span> s</div>
+                    </div>
+                </div>
+
+                <div class="lock-time">
+                    鎖定倒數： <span id="lockCountdown">--</span>
+                    <div style="font-size: 12px; color: #4CAF50; margin-top: 2px;" id="connectionInfo">正在連接...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-label">UP 總計</div>
+                <div class="stat-value up" id="totalUp">0.0000 BNB</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">DOWN 總計</div>
+                <div class="stat-value down" id="totalDown">0.0000 BNB</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">總金額 (下注數)</div>
+                <div class="stat-value" id="totalBets">0.0000 BNB (0)</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">局次狀態</div>
+                <div class="stat-value" id="roundStatus">--</div>
+            </div>
+        </div>
+
+        <!-- 回測數據表格 -->
+        <div class="backtest-section">
+            <div class="backtest-header" id="backtestHeader">📊 策略回測表現（相互50格：當前+前1局預測 | 48局統計）</div>
+            <div class="backtest-table-container">
+                <table class="backtest-table" id="backtestTable">
+                    <tbody>
+                        <!-- 表格內容將通過 JavaScript 動態生成 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="bets-container">
+            <div class="bets-header">
+                <div>時間</div>
+                <div>局次</div>
+                <div>錢包地址</div>
+                <div>方向</div>
+                <div>金額 (BNB)</div>
+                <div>分析</div>
+            </div>
+            <div id="betsContent">
+                <div class="no-data">等待即時下注數據...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="connection-status disconnected" id="connectionStatus">已斷線</div>
+
+    <script>
+        'use strict';
+
+        // ========================================
+        // 工具函數模組
+        // ========================================
+        
+        const Utils = {
+            /**
+             * 格式化時間
+             */
+            formatTime(timeString) {
+                if (!timeString) return '--:--:--';
+                const d = new Date(timeString);
+                if (!isNaN(d.getTime())) {
+                    return d.toLocaleTimeString('zh-TW', { 
+                        timeZone: 'Asia/Taipei', 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        second: '2-digit', 
+                        hour12: false 
+                    });
+                }
+                if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(timeString)) {
+                    return timeString.split(' ')[1];
+                }
+                const m = timeString.match(/(\d{2}:\d{2}:\d{2})/);
+                return m ? m[1] : timeString;
+            },
+
+            /**
+             * 格式化錢包地址（添加標籤）
+             */
+            formatWallet(address, walletTags) {
+                if (!address) return '';
+                let displayText = address;
+
+                if (walletTags) {
+                    if (walletTags.whale_level > 0) {
+                        const whales = '🐳'.repeat(walletTags.whale_level);
+                        displayText += `  ${whales}`;
+                    }
+                    if (walletTags.is_bot) {
+                        displayText += '  💻';
+                    }
+                }
+
+                return displayText;
+            },
+
+            /**
+             * 獲取得分顏色
+             */
+            getScoreColor(score) {
+                if (score >= 80) return '#00FF00';
+                if (score >= 60) return '#FFFF00';
+                if (score >= 40) return '#FFA500';
+                if (score >= 20) return '#FF6666';
+                return '#FF0000';
+            },
+
+            /**
+             * 格式化得分
+             */
+            formatScore(score) {
+                return (score === null || score === undefined) ? '-' : `${score}%`;
+            },
+
+            /**
+             * 格式化盈虧
+             */
+            formatProfitLoss(profitLoss) {
+                if (profitLoss === null || profitLoss === undefined) return '-';
+                const numValue = parseFloat(profitLoss);
+                if (isNaN(numValue)) return '-';
+                return numValue >= 0 ? `+${numValue.toFixed(3)}` : `${numValue.toFixed(3)}`;
+            },
+
+            /**
+             * 獲取盈虧顏色
+             */
+            getProfitLossColor(profitLoss) {
+                if (profitLoss === null || profitLoss === undefined) return '#666';
+                const numValue = parseFloat(profitLoss);
+                if (isNaN(numValue)) return '#666';
+                return numValue > 0 ? '#28a745' : numValue < 0 ? '#dc3545' : '#666';
+            }
+        };
+
+        // ========================================
+        // WebSocket 管理器
+        // ========================================
+
+        class WebSocketManager {
+            constructor(onConnect, onMessage, onDisconnect) {
+                this.ws = null;
+                this.isConnected = false;
+                this.reconnectAttempts = 0;
+                this.maxReconnectAttempts = 5;
+                this.reconnectDelay = 3000;
+                
+                this.onConnect = onConnect;
+                this.onMessage = onMessage;
+                this.onDisconnect = onDisconnect;
+            }
+
+            connect() {
+                try {
+                    const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
+                    console.log('連接 WebSocket:', wsUrl);
+                    
+                    this.ws = new WebSocket(wsUrl);
+                    
+                    this.ws.onopen = () => {
+                        console.log('WebSocket 連接成功');
+                        this.isConnected = true;
+                        this.reconnectAttempts = 0;
+                        this.onConnect();
+                    };
+                    
+                    this.ws.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data);
+                            this.onMessage(data);
+                        } catch (error) {
+                            console.error('解析消息失敗:', error);
+                        }
+                    };
+                    
+                    this.ws.onclose = () => {
+                        console.log('WebSocket 已斷開');
+                        this.isConnected = false;
+                        this.onDisconnect();
+                        this.scheduleReconnect();
+                    };
+                    
+                    this.ws.onerror = (error) => {
+                        console.error('WebSocket 錯誤:', error);
+                    };
+                    
+                } catch (error) {
+                    console.error('連接失敗:', error);
+                    this.scheduleReconnect();
+                }
+            }
+
+            scheduleReconnect() {
+                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.reconnectAttempts++;
+                    const delay = this.reconnectDelay * this.reconnectAttempts;
+                    console.log(`${delay/1000}秒後重連...`);
+                    setTimeout(() => {
+                        if (!this.isConnected) this.connect();
+                    }, delay);
+                }
+            }
+
+            send(message) {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify(message));
+                    return true;
+                }
+                return false;
+            }
+
+            disconnect() {
+                if (this.ws) {
+                    this.ws.close();
+                    this.ws = null;
+                }
+            }
+        }
+
+        // ========================================
+        // 狀態管理器
+        // ========================================
+
+        class StateManager {
+            constructor() {
+                this.currentRound = null;
+                this.viewingEpoch = null;
+                this.bets = [];
+                this.stats = {
+                    upTotal: 0,
+                    downTotal: 0,
+                    totalAmount: 0,
+                    totalCount: 0,
+                    bigBetsUp: 0,
+                    bigBetsDown: 0
+                };
+                this.epochCache = new Map();
+                this.maxCacheSize = 50;
+            }
+
+            setCurrentRound(roundData) {
+                this.currentRound = roundData;
+            }
+
+            setViewingEpoch(epoch) {
+                this.viewingEpoch = epoch;
+            }
+
+            setBets(bets) {
+                this.bets = bets;
+            }
+
+            addBet(bet) {
+                this.bets.unshift(bet);
+                if (this.bets.length > 100) {
+                    this.bets = this.bets.slice(0, 100);
+                }
+            }
+
+            calculateStats() {
+                this.stats = {
+                    upTotal: 0,
+                    downTotal: 0,
+                    totalAmount: 0,
+                    totalCount: this.bets.length,
+                    bigBetsUp: 0,
+                    bigBetsDown: 0
+                };
+
+                this.bets.forEach(bet => {
+                    const amount = parseFloat(bet.amount || bet.bet_amount || 0);
+                    this.stats.totalAmount += amount;
+                    
+                    if (bet.bet_direction === 'UP') {
+                        this.stats.upTotal += amount;
+                        if (amount >= 0.1) this.stats.bigBetsUp++;
+                    } else {
+                        this.stats.downTotal += amount;
+                        if (amount >= 0.1) this.stats.bigBetsDown++;
+                    }
+                });
+            }
+
+            saveToCache(epoch, data) {
+                const existing = this.epochCache.get(epoch) || {};
+                this.epochCache.set(epoch, { ...existing, ...data });
+
+                if (this.epochCache.size > this.maxCacheSize) {
+                    const sortedKeys = Array.from(this.epochCache.keys()).sort((a, b) => a - b);
+                    const toDelete = sortedKeys.slice(0, this.epochCache.size - this.maxCacheSize);
+                    toDelete.forEach(key => this.epochCache.delete(key));
+                }
+            }
+
+            getFromCache(epoch) {
+                return this.epochCache.get(epoch);
+            }
+        }
+
+        // ========================================
+        // 圖表渲染器
+        // ========================================
+
+        class ChartRenderer {
+            constructor() {
+                this.width = 420;
+                this.height = 50;
+                this.padding = { top: 5, right: 10, bottom: 5, left: 10 };
+                this.maxAmount = 1.25;
+                this.gap1 = 12;
+                this.gap2 = 10;
+                this.pointSpacing = 7;
+            }
+
+            generate(chartData) {
+                if (!chartData || chartData.length === 0) {
+                    return '<div style="color: #666; font-size: 11px; text-align: center;">無圖表數據</div>';
+                }
+
+                const dataPoints = this.prepareData(chartData);
+                return this.renderSVG(dataPoints);
+            }
+
+            prepareData(chartData) {
+                const chartHeight = this.height - this.padding.top - this.padding.bottom;
+                const yScale = (amount) => chartHeight - (amount / this.maxAmount * chartHeight * 0.8);
+
+                const xPositions = this.calculateXPositions();
+
+                return chartData.slice(0, 50).map((point, index) => ({
+                    x: xPositions[index],
+                    y: this.padding.top + yScale(point.amount),
+                    y0: this.padding.top + yScale(0),
+                    amount: point.amount,
+                    result: point.result,
+                    index: index
+                }));
+            }
+
+            calculateXPositions() {
+                const positions = [];
+                let currentX = this.padding.left;
+
+                // 第1局
+                positions[0] = currentX;
+                currentX += this.pointSpacing;
+
+                // 第2局
+                positions[1] = currentX;
+                currentX += this.gap1;
+
+                // 第3-50局
+                for (let i = 2; i < 50; i++) {
+                    positions[i] = currentX;
+                    currentX += this.pointSpacing;
+                    if ((i - 2) > 0 && (i - 2) % 12 === 11 && i < 49) {
+                        currentX += this.gap2;
+                    }
+                }
+
+                return positions;
+            }
+
+            renderSVG(dataPoints) {
+                const pathSegments = [];
+                let currentSegment = [];
+                const markers = [];
+
+                for (const point of dataPoints) {
+                    const hasBet = point.amount > 0 || point.index < 2;
+
+                    if (hasBet) {
+                        currentSegment.push(`${point.x},${point.y}`);
+                    } else {
+                        if (currentSegment.length > 0) {
+                            pathSegments.push(currentSegment);
+                            currentSegment = [];
+                        }
+                    }
+
+                    markers.push(this.createMarker(point));
+                }
+
+                if (currentSegment.length > 0) {
+                    pathSegments.push(currentSegment);
+                }
+
+                const paths = pathSegments.map(segment => {
+                    if (segment.length < 2) return '';
+                    return `<path d="M${segment.join(' L')}" fill="none" stroke="#555" stroke-width="1"/>`;
+                }).join('');
+
+                return `
+                    <svg width="${this.width}" height="${this.height}" viewBox="0 0 ${this.width} ${this.height}" xmlns="http://www.w3.org/2000/svg">
+                        ${paths}
+                        ${markers.join('')}
+                    </svg>
+                `;
+            }
+
+            createMarker(point) {
+                const { x, y, y0, index, result } = point;
+                const size = 3;
+
+                if (index === 0) {
+                    // X符號
+                    return `<g>
+                        <line x1="${x-size}" y1="${y-size}" x2="${x+size}" y2="${y+size}" stroke="#FFD700" stroke-width="1.5"/>
+                        <line x1="${x-size}" y1="${y+size}" x2="${x+size}" y2="${y-size}" stroke="#FFD700" stroke-width="1.5"/>
+                    </g>`;
+                } else if (index === 1) {
+                    // 三角形
+                    return `<polygon points="${x},${y-size} ${x-size},${y+size} ${x+size},${y+size}" fill="none" stroke="#00BFFF" stroke-width="1.2"/>`;
+                } else {
+                    // 圓圈
+                    if (result === 'WIN') {
+                        return `<circle cx="${x}" cy="${y}" r="3.5" fill="#00FF00" stroke="none"/>`;
+                    } else if (result === 'LOSS') {
+                        return `<circle cx="${x}" cy="${y}" r="3.5" fill="#FF0000" stroke="none"/>`;
+                    } else {
+                        return `<circle cx="${x}" cy="${y0}" r="3" fill="none" stroke="#888" stroke-width="1"/>`;
+                    }
+                }
+            }
+        }
+
+        // ========================================
+        // 下注渲染器
+        // ========================================
+
+        class BetRenderer {
+            constructor() {
+                this.chartRenderer = new ChartRenderer();
+            }
+
+            generateBetHTML(bet, analysis, isNewBet = false) {
+                const amount = parseFloat(bet.amount || bet.bet_amount || 0);
+                const amountClass = this.getAmountClass(amount);
+                const walletInfo = analysis[bet.wallet_address.toLowerCase()];
+                
+                let betItemClass = 'bet-item';
+                if (isNewBet) betItemClass += ' new-bet';
+
+                let walletClass = 'bet-wallet';
+                let walletStatsHtml = '';
+
+                if (walletInfo) {
+                    walletClass += this.getWalletClass(walletInfo);
+                    walletStatsHtml = this.generateWalletStatsHTML(walletInfo);
+                }
+
+                const walletTags = walletInfo ? walletInfo.wallet_tags : null;
+                const chartData = walletInfo ? walletInfo.chart_data : null;
+                const chartSVG = chartData ? this.chartRenderer.generate(chartData) : '';
+
+                return `
+                    <div class="${betItemClass}" 
+                         data-epoch="${bet.epoch}" 
+                         data-wallet="${bet.wallet_address}" 
+                         data-wallet-lc="${bet.wallet_address.toLowerCase()}" 
+                         data-tx-hash="${bet.tx_hash || bet.txHash || ''}">
+                        <div class="bet-time">${Utils.formatTime(bet.bet_time || bet.bet_ts)}</div>
+                        <div class="bet-epoch">${bet.epoch}</div>
+                        <div class="${walletClass}" data-tx-hash="${bet.tx_hash || bet.txHash || ''}">
+                            <div>${Utils.formatWallet(bet.wallet_address, walletTags)}</div>
+                            ${walletStatsHtml}
+                        </div>
+                        <div class="bet-direction ${bet.bet_direction.toLowerCase()}">${bet.bet_direction}</div>
+                        <div class="bet-amount ${amountClass}">${amount.toFixed(4)}</div>
+                        <div class="wallet-analysis">${chartSVG}</div>
+                    </div>
+                `;
+            }
+
+            getAmountClass(amount) {
+                if (amount >= 1) return 'huge';
+                if (amount >= 0.1) return 'large';
+                if (amount >= 0.05) return 'medium';
+                return 'small';
+            }
+
+            getWalletClass(walletInfo) {
+                if (walletInfo.is_multi_claim) {
+                    return walletInfo.total_amount < 5 ? ' multi-claim-below-5' : ' multi-claim-above-5';
+                }
+                return '';
+            }
+
+            generateWalletStatsHTML(walletInfo) {
+                if (!walletInfo.short_12_rounds && !walletInfo.mid_48_rounds) return '';
+
+                const short12 = walletInfo.short_12_rounds;
+                const mid48 = walletInfo.mid_48_rounds;
+
+                let html = '';
+
+                // 近12局：只要有數據結構就顯示（即使 total_bets = 0 也顯示 "-"）
+                if (short12) {
+                    html += `
+                        <div style="font-size: 11px; margin-top: 2px; line-height: 1.2;">
+                            <b>近12局:</b> 得分: <b style="color: ${Utils.getScoreColor(short12.score)};">${Utils.formatScore(short12.score)}</b> |
+                            盈虧: <b style="color: ${Utils.getProfitLossColor(short12.profit_loss)};">${Utils.formatProfitLoss(short12.profit_loss)}</b>
+                        </div>
+                    `;
+                }
+
+                // 近48局：只要有數據結構就顯示（即使 total_bets = 0 也顯示 "-"）
+                if (mid48) {
+                    html += `
+                        <div style="font-size: 11px; margin-top: 1px; color: #aaa; line-height: 1.2;">
+                            <b>近48局:</b> 得分: <span style="color: ${Utils.getScoreColor(mid48.score)};">${Utils.formatScore(mid48.score)}</span> |
+                            盈虧: <span style="color: ${Utils.getProfitLossColor(mid48.profit_loss)};">${Utils.formatProfitLoss(mid48.profit_loss)}</span>
+                        </div>
+                    `;
+                }
+
+                return html;
+            }
+        }
+
+        // ========================================
+        // 高亮管理器
+        // ========================================
+
+        class HighlightManager {
+            constructor() {
+                this.highlights = this.loadFromStorage();
+                this.classMap = {1: 'hl-1', 2: 'hl-2', 3: 'hl-3', 4: 'hl-4', 5: 'hl-5', 6: 'hl-6'};
+            }
+
+            loadFromStorage() {
+                try {
+                    const raw = localStorage.getItem('walletHighlights');
+                    if (!raw) return new Map();
+                    const obj = JSON.parse(raw);
+                    return new Map(Object.entries(obj));
+                } catch (e) {
+                    return new Map();
+                }
+            }
+
+            saveToStorage() {
+                try {
+                    const obj = Object.fromEntries(this.highlights.entries());
+                    localStorage.setItem('walletHighlights', JSON.stringify(obj));
+                } catch (e) {
+                    console.warn('保存高亮失敗', e);
+                }
+            }
+
+            toggle(walletAddress) {
+                const key = walletAddress.toLowerCase();
+                const current = this.highlights.get(key) || 0;
+                const next = (current + 1) % 7;
+                
+                if (next === 0) {
+                    this.highlights.delete(key);
+                } else {
+                    this.highlights.set(key, next);
+                }
+                
+                this.saveToStorage();
+                return next;
+            }
+
+            getLevel(walletAddress) {
+                return this.highlights.get(walletAddress.toLowerCase()) || 0;
+            }
+
+            applyToElement(element, walletAddress) {
+                const level = this.getLevel(walletAddress);
+                
+                // 移除所有高亮類
+                Object.values(this.classMap).forEach(cls => element.classList.remove(cls));
+                
+                // 添加新高亮
+                if (level > 0) {
+                    element.classList.add(this.classMap[level]);
+                }
+            }
+
+            applyToAllElements(container) {
+                if (!this.highlights || this.highlights.size === 0) return;
+                
+                for (const [wallet, level] of this.highlights.entries()) {
+                    const elements = container.querySelectorAll(`.bet-item[data-wallet-lc="${wallet}"]`);
+                    elements.forEach(el => {
+                        if (level > 0) {
+                            el.classList.add(this.classMap[level]);
+                        }
+                    });
+                }
+            }
+
+            clearAll() {
+                this.highlights.clear();
+                this.saveToStorage();
+            }
+        }
+
+        // ========================================
+        // UI 管理器
+        // ========================================
+
+        class UIManager {
+            constructor(elements) {
+                this.elements = elements;
+            }
+
+            updateConnectionStatus(connected, text) {
+                this.elements.connectionStatus.textContent = connected ? '已連線' : '已斷線';
+                this.elements.connectionStatus.className = `connection-status ${connected ? 'connected' : 'disconnected'}`;
+                this.elements.connectionInfo.textContent = text;
+            }
+
+            updateRoundInfo(epoch, mode) {
+                this.elements.currentRound.textContent = epoch;
+                this.elements.epochMode.textContent = mode;
+            }
+
+            updateStats(stats) {
+                const upCounter = stats.bigBetsUp > 0 ? ` (+${stats.bigBetsUp})` : '';
+                const downCounter = stats.bigBetsDown > 0 ? ` (+${stats.bigBetsDown})` : '';
+                
+                this.elements.totalUp.textContent = `${stats.upTotal.toFixed(4)} BNB${upCounter}`;
+                this.elements.totalDown.textContent = `${stats.downTotal.toFixed(4)} BNB${downCounter}`;
+                this.elements.totalBets.textContent = `${stats.totalAmount.toFixed(4)} BNB (${stats.totalCount})`;
+            }
+
+            updateRoundStatus(status) {
+                this.elements.roundStatus.textContent = status;
+            }
+
+            updateRoundStatusHTML(html) {
+                this.elements.roundStatus.innerHTML = html;
+            }
+
+            updateNavigationButtons(currentEpoch, maxEpoch) {
+                this.elements.prevEpoch.disabled = (currentEpoch <= 1);
+                this.elements.nextEpoch.disabled = (maxEpoch > 0 && currentEpoch >= maxEpoch);
+            }
+
+            clearBetsDisplay() {
+                this.elements.betsContent.innerHTML = '<div class="no-data">載入局次數據中...</div>';
+            }
+
+            showNoBets() {
+                this.elements.betsContent.innerHTML = '<div class="no-data">暫無下注數據</div>';
+            }
+        }
+
+        // ========================================
+        // 主應用程式類
+        // ========================================
+
+        class RealtimeBettingTerminal {
+            constructor() {
+                // 初始化管理器
+                this.state = new StateManager();
+                this.highlightManager = new HighlightManager();
+                this.betRenderer = new BetRenderer();
+                
+                // DOM 元素
+                this.elements = {
+                    connectionStatus: document.getElementById('connectionStatus'),
+                    connectionInfo: document.getElementById('connectionInfo'),
+                    currentRound: document.getElementById('currentRound'),
+                    epochMode: document.getElementById('epochMode'),
+                    lockCountdown: document.getElementById('lockCountdown'),
+                    totalUp: document.getElementById('totalUp'),
+                    totalDown: document.getElementById('totalDown'),
+                    totalBets: document.getElementById('totalBets'),
+                    roundStatus: document.getElementById('roundStatus'),
+                    betsContent: document.getElementById('betsContent'),
+                    prevEpoch: document.getElementById('prevEpoch'),
+                    nextEpoch: document.getElementById('nextEpoch'),
+                    followBestRate: document.getElementById('followBestRate'),
+                    reverseLowRate: document.getElementById('reverseLowRate'),
+                    momentumRate: document.getElementById('momentumRate'),
+                    momentumPrediction: document.getElementById('momentumPrediction'),
+                    predictionConfidence: document.getElementById('predictionConfidence'),
+                    momentumReasons: document.getElementById('momentumReasons'),
+                    momentumReasonsText: document.getElementById('momentumReasonsText'),
+                    txP50: document.getElementById('txP50'),
+                    txP90: document.getElementById('txP90'),
+                    txDelta: document.getElementById('txDelta'),
+                    backtestHeader: document.getElementById('backtestHeader'),
+                };
+
+                this.ui = new UIManager(this.elements);
+
+                // WebSocket
+                this.wsManager = new WebSocketManager(
+                    () => this.onConnect(),
+                    (data) => this.onMessage(data),
+                    () => this.onDisconnect()
+                );
+
+                // 計時器
+                this.countdownInterval = null;
+
+                // 狀態標誌
+                this.isQueryingRealbet = false;
+                this.queryEpoch = null;
+                this.forceJumpToNewRound = false;
+                this.backtestTableRendered = false;
+                this.lastBacktestEpoch = null; // 追蹤上次回測的局次
+
+                // 防抖計時器
+                this.repositionTimer = null;
+
+                this.init();
+            }
+
+            init() {
+                console.log('初始化系統...');
+                this.setupEventListeners();
+                this.wsManager.connect();
+            }
+
+            setupEventListeners() {
+                // 局次導航
+                this.elements.prevEpoch.addEventListener('click', () => this.navigateEpoch(-1));
+                this.elements.nextEpoch.addEventListener('click', () => this.navigateEpoch(1));
+
+                // 錢包高亮
+                this.elements.betsContent.addEventListener('click', (e) => this.onBetsContentClick(e));
+
+                // 清除高亮
+                const lockTimeDiv = document.querySelector('.lock-time');
+                if (lockTimeDiv) {
+                    lockTimeDiv.addEventListener('click', () => this.clearAllHighlights());
+                }
+
+                // 頁面可見性
+                document.addEventListener('visibilitychange', () => {
+                    if (!document.hidden && !this.wsManager.isConnected) {
+                        this.wsManager.connect();
+                    }
+                });
+            }
+
+            // ========================================
+            // WebSocket 事件處理
+            // ========================================
+
+            onConnect() {
+                this.ui.updateConnectionStatus(true, '已連接');
+                this.wsManager.send({ type: 'get_current_round' });
+                
+                // 立即請求回測數據
+                console.log('🔄 連接建立，立即請求回測數據');
+                this.wsManager.send({ type: 'force_backtest_refresh' });
+                
+                // 預約 3 秒後再次請求回測數據（防止 Redis 還沒準備好）
+                setTimeout(() => {
+                    if (!this.backtestTableRendered) {
+                        console.log('🔄 3秒後仍未收到回測數據，重新請求');
+                        this.wsManager.send({ type: 'force_backtest_refresh' });
+                    }
+                }, 3000);
+                
+                // 預約 6 秒後最後一次請求（確保頁面刷新後能正確載入）
+                setTimeout(() => {
+                    if (!this.backtestTableRendered) {
+                        console.log('🔄 6秒後仍未收到回測數據，最後一次請求');
+                        this.wsManager.send({ type: 'force_backtest_refresh' });
+                    }
+                }, 6000);
+            }
+
+            onDisconnect() {
+                this.ui.updateConnectionStatus(false, '連接中斷');
+            }
+
+            onMessage(data) {
+                switch (data.type) {
+                    case 'current_round':
+                    case 'round_update':
+                        this.handleRoundUpdate(data.data);
+                        break;
+                    case 'backtest_update':
+                        console.log('📊 收到 backtest_update 消息:', data.data);
+                        if (data.data && data.data.strategies) {
+                            console.log('策略數量:', Object.keys(data.data.strategies).length);
+                            Object.keys(data.data.strategies).forEach(key => {
+                                const strategy = data.data.strategies[key];
+                                console.log(`策略 ${key}:`, {
+                                    name: strategy.name,
+                                    winRate: strategy.winRate,
+                                    historyLength: strategy.history ? strategy.history.length : 0,
+                                    hasHistory: !!strategy.history
+                                });
+                                if (strategy.history && strategy.history.length > 0) {
+                                    console.log(`  前3筆歷史:`, strategy.history.slice(0, 3));
+                                }
+                            });
+                        } else {
+                            console.warn('⚠️ backtest_update 數據格式錯誤或無 strategies');
+                        }
+                        this.handleBacktestUpdate(data.data);
+                        break;
+                    case 'live_predictions':
+                        this.handleLivePredictions(data.data);
+                        break;
+                    case 'tx_benchmark':
+                        this.handleTxBenchmark(data.data);
+                        break;
+                    case 'realtime_bets':
+                        this.handleBetsData(data.data, 'realtime');
+                        break;
+                    case 'historical_bets':
+                        this.handleBetsData(data.data, 'historical');
+                        break;
+                    case 'historical_round':
+                        this.handleHistoricalRound(data.data);
+                        break;
+                    case 'new_bet':
+                        this.handleNewBet(data.data);
+                        break;
+                    case 'bet_analysis':
+                        console.log(`📥 收到 bet_analysis:`, data.data.wallet_address?.substring(0, 8), '完整數據:', data.data);
+                        this.handleBetAnalysis(data.data);
+                        break;
+                    default:
+                        console.warn('❓ 未知訊息類型:', data.type);
+                }
+            }
+
+            // ========================================
+            // 局次處理
+            // ========================================
+
+            handleRoundUpdate(roundData) {
+                if (!roundData) return;
+
+                const oldLiveEpoch = this.state.currentRound ? this.state.currentRound.epoch : null;
+                const newEpoch = parseInt(roundData.epoch);
+                const oldEpoch = oldLiveEpoch ? parseInt(oldLiveEpoch) : null;
+                const viewingEpoch = this.state.viewingEpoch ? parseInt(this.state.viewingEpoch) : null;
+                const amIWatchingLive = (viewingEpoch === oldEpoch);
+                const isNewRoundStarting = (oldEpoch !== null && newEpoch !== oldEpoch);
+
+                // 防止局次倒退：如果新局次比當前已知的最大局次還舊，則拒絕
+                if (oldEpoch !== null && newEpoch < oldEpoch) {
+                    console.log(`🚫 拒絕倒退：收到舊局次 ${newEpoch}（當前最新: ${oldEpoch}）`);
+                    return;
+                }
+
+                // 防止在觀看 live 時倒退
+                if (amIWatchingLive && viewingEpoch !== null && newEpoch < viewingEpoch) {
+                    console.log(`🚫 拒絕倒退：新局次 ${newEpoch} < 當前觀看 ${viewingEpoch}`);
+                    return;
+                }
+
+                console.log(`📥 Round Update: epoch=${newEpoch}, oldEpoch=${oldEpoch}, viewingEpoch=${viewingEpoch}, isNew=${isNewRoundStarting}, watchingLive=${amIWatchingLive}`);
+
+                // 更新 currentRound
+                this.state.setCurrentRound(roundData);
+
+                // 決定是否需要載入新數據
+                let shouldLoadNewData = false;
+
+                if (this.forceJumpToNewRound && amIWatchingLive) {
+                    // 只有在觀看 live 時才允許強制跳轉
+                    console.log('🔄 強制跳轉到新回合');
+                    this.forceJumpToNewRound = false;
+                    shouldLoadNewData = true;
+                } else if (!viewingEpoch) {
+                    console.log('🔄 首次載入');
+                    shouldLoadNewData = true;
+                } else if (isNewRoundStarting && amIWatchingLive) {
+                    console.log('🔄 新回合開始，自動跳轉');
+                    shouldLoadNewData = true;
+                } else if (this.forceJumpToNewRound && !amIWatchingLive) {
+                    // 如果在看歷史局次，清除強制跳轉標記但不跳轉
+                    console.log('🚫 觀看歷史局次中，忽略自動跳轉');
+                    this.forceJumpToNewRound = false;
+                }
+
+                if (shouldLoadNewData) {
+                    this.loadEpochData(newEpoch);
+                } else {
+                    // 只更新狀態，不重新載入數據
+                    if (viewingEpoch === newEpoch) {
+                        this.ui.updateRoundStatus(roundData.status);
+                        // 更新統計數據（即使不重新載入下注數據）
+                        this.state.calculateStats();
+                        this.ui.updateStats(this.state.stats);
+                    }
+                }
+
+                this.startCountdown(roundData);
+            }
+
+            startCountdown(roundData) {
+                if (this.countdownInterval) clearInterval(this.countdownInterval);
+
+                // 重置倒數結束標記
+                this.countdownFinished = false;
+
+                this.countdownInterval = setInterval(() => {
+                    // 使用最新的 currentRound 而不是傳入的快照
+                    const current = this.state.currentRound || roundData;
+                    const now = Math.floor(Date.now() / 1000);
+                    let timeLeft;
+
+                    if (current.status === 'LIVE') {
+                        timeLeft = current.lockTimestamp - now;
+                    } else if (current.status === 'LOCKED') {
+                        timeLeft = current.closeTimestamp - now;
+                    } else {
+                        this.elements.lockCountdown.textContent = '--';
+                        return;
+                    }
+
+                    if (timeLeft > 0) {
+                        const minutes = Math.floor(timeLeft / 60);
+                        const seconds = timeLeft % 60;
+                        this.elements.lockCountdown.textContent =
+                            `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                        // 重置標記，允許下次倒數結束時觸發
+                        this.countdownFinished = false;
+                        
+                        // 在鎖倉前5秒，刷新回測表格第3格（顯示下一局預測）
+                        if (timeLeft <= 5 && timeLeft > 0) {
+                            this.updateBacktestTableColumn0();
+                        }
+                    } else {
+                        this.elements.lockCountdown.textContent = '00:00';
+
+                        // 只在第一次倒數到 00:00 時觸發，避免重複請求
+                        if (!this.countdownFinished) {
+                            this.countdownFinished = true;
+                            console.log('⏰ 倒數結束，請求最新回合');
+                            this.forceJumpToNewRound = true;
+                            this.wsManager.send({ type: 'get_current_round' });
+                        }
+                    }
+                }, 1000);
+            }
+
+            handleHistoricalRound(roundData) {
+                if (!roundData) {
+                    this.ui.updateRoundStatus('無資料');
+                    return;
+                }
+
+                if (roundData.result) {
+                    const resultText = roundData.result === 'UP' ? '漲' : '跌';
+                    const price = parseFloat(roundData.closePrice).toFixed(4);
+                    this.ui.updateRoundStatusHTML(
+                        `<span class="bet-direction ${roundData.result.toLowerCase()}">${resultText}</span> @ ${price}`
+                    );
+                } else {
+                    this.ui.updateRoundStatus('已結束');
+                }
+
+                if (this.countdownInterval) clearInterval(this.countdownInterval);
+                this.elements.lockCountdown.textContent = '--';
+
+                if (roundData.epoch) {
+                    this.state.saveToCache(parseInt(roundData.epoch), { roundInfo: roundData });
+                }
+            }
+
+            // ========================================
+            // 回測數據處理
+            // ========================================
+
+            handleBacktestUpdate(data) {
+                if (!data || !data.strategies) return;
+
+                const followBest = data.strategies.follow_best;
+                const reverseLow = data.strategies.reverse_low;
+                const momentum = data.strategies.momentum;
+                
+                // 檢查局次是否變化
+                const newEpoch = data.currentEpoch;
+                const epochChanged = this.lastBacktestEpoch !== null && this.lastBacktestEpoch !== newEpoch;
+                
+                if (epochChanged) {
+                    console.log(`🔄 局次變化: ${this.lastBacktestEpoch} → ${newEpoch}，強制刷新表格`);
+                    // 重置狀態，強制刷新
+                    this.backtestTableRendered = false;
+                }
+                this.lastBacktestEpoch = newEpoch;
+
+                if (followBest) {
+                    const rate = parseFloat(followBest.winRate);
+                    const color = rate >= 55 ? '#0f0' : rate >= 50 ? '#ff0' : '#f00';
+                    this.elements.followBestRate.textContent = `${followBest.winRate}% (${followBest.wins}/${followBest.total})`;
+                    this.elements.followBestRate.style.color = color;
+                }
+
+                if (reverseLow) {
+                    const rate = parseFloat(reverseLow.winRate);
+                    const color = rate >= 55 ? '#0f0' : rate >= 50 ? '#ff0' : '#f00';
+                    this.elements.reverseLowRate.textContent = `${reverseLow.winRate}% (${reverseLow.wins}/${reverseLow.total})`;
+                    this.elements.reverseLowRate.style.color = color;
+                }
+
+                if (momentum) {
+                    const rate = parseFloat(momentum.winRate);
+                    const color = rate >= 55 ? '#0f0' : rate >= 50 ? '#ff0' : '#f00';
+                    this.elements.momentumRate.textContent = `${momentum.winRate}% (${momentum.wins}/${momentum.total})`;
+                    this.elements.momentumRate.style.color = color;
+                }
+
+                // 渲柔回測表格
+                this.renderBacktestTable(data);
+            }
+
+            renderBacktestTable(backtestData) {
+                console.log('📊 renderBacktestTable 被呼叫:', backtestData);
+                
+                // 儲存最新的回測數據，供 updateBacktestTableColumn0 使用
+                this.latestBacktestData = backtestData;
+                
+                // 更新表格header顯示當前局次
+                if (backtestData && backtestData.currentEpoch) {
+                    const currentEpoch = backtestData.currentEpoch;
+                    if (this.elements.backtestHeader) {
+                        this.elements.backtestHeader.innerHTML = `📊 策略回測表現（50格時間軸）<br><span style="font-size:12px;color:#888;">第3格=當前局<span style="color:#FFD700">#${currentEpoch}</span> | 第4格=#${currentEpoch-1} | 第5格起=歷史數據</span>`;
+                    }
+                }
+                
+                const table = document.getElementById('backtestTable');
+                if (!table) {
+                    console.error('⚠️ 找不到 backtestTable');
+                    return;
+                }
+
+                const tbody = table.querySelector('tbody');
+                if (!tbody) {
+                    console.error('⚠️ 找不到 tbody');
+                    return;
+                }
+                
+                // 檢查數據有效性
+                if (!backtestData || !backtestData.strategies) {
+                    console.warn('⚠️ 回測數據無效，不更新表格');
+                    return;
+                }
+                
+                // 檢查每個策略的歷史數據
+                const strategyValidation = {};
+                Object.keys(backtestData.strategies).forEach(key => {
+                    const strategy = backtestData.strategies[key];
+                    const isValid = strategy && strategy.history && strategy.history.length > 0;
+                    strategyValidation[key] = {
+                        hasStrategy: !!strategy,
+                        hasHistory: !!(strategy && strategy.history),
+                        historyLength: (strategy && strategy.history) ? strategy.history.length : 0,
+                        isValid
+                    };
+                });
+                
+                console.log('策略有效性檢查:', strategyValidation);
+                
+                const hasValidData = Object.values(strategyValidation).some(v => v.isValid);
+                
+                if (!hasValidData) {
+                    console.warn('⚠️ 沒有有效的歷史數據，不更新表格');
+                    
+                    // 如果表格已經渲染過或已有內容，絕對不要用無效數據覆蓋
+                    const currentRows = tbody.querySelectorAll('tr');
+                    const hasExistingData = currentRows.length > 0;
+                    
+                    if (this.backtestTableRendered || hasExistingData) {
+                        console.log('表格已渲染或已有內容，保持現有內容，拒絕無效數據');
+                        return;
+                    }
+                    
+                    // 如果是全新的表格，還是要顯示一个加載中的狀態
+                    tbody.innerHTML = `
+                        <tr>
+                            <td class="strategy-name">加載中...</td>
+                            <td class="strategy-winrate">-</td>
+                            ${Array.from({length: 50}, () => '<td class="epoch-result"><span class="no-prediction">-</span></td>').join('')}
+                        </tr>
+                    `;
+                    return;
+                }
+
+                // 提取策略數據
+                const strategies = [
+                    { 
+                        name: '動量策略', 
+                        key: 'momentum',
+                        data: backtestData.strategies.momentum 
+                    },
+                    { 
+                        name: '跟隨最高勝率', 
+                        key: 'follow_best',
+                        data: backtestData.strategies.follow_best 
+                    },
+                    { 
+                        name: '反向最低勝率', 
+                        key: 'reverse_low',
+                        data: backtestData.strategies.reverse_low 
+                    }
+                ];
+                
+                // 調試：輸出history的前5個局次編號
+                console.log('🔍 檢查history局次對應:');
+                strategies.forEach(strategy => {
+                    if (strategy.data && strategy.data.history) {
+                        const first5Epochs = strategy.data.history.slice(0, 5).map(h => h.epoch);
+                        console.log(`  ${strategy.name}: history[0-4].epoch = [${first5Epochs.join(', ')}]`);
+                        console.log(`  預期 history[0].epoch = ${backtestData.currentEpoch}, 實際 = ${strategy.data.history[0]?.epoch}`);
+                    }
+                });
+
+                // 更嚴格檢查是否已有有效內容
+                const existingRows = tbody.querySelectorAll('tr');
+                const hasRealData = Array.from(existingRows).some(row => {
+                    // 檢查策略名稱不是加載中狀態
+                    const nameCell = row.querySelector('td.strategy-name');
+                    if (nameCell && nameCell.textContent.includes('加載中')) {
+                        return false; // 這是加載中狀態，不算有效內容
+                    }
+                    
+                    // 檢查是否有預測圓圈
+                    const cells = row.querySelectorAll('td.epoch-result');
+                    return cells.length > 0 && Array.from(cells).some(cell => {
+                        const circle = cell.querySelector('.prediction-circle');
+                        return circle && (circle.classList.contains('prediction-up') || 
+                                        circle.classList.contains('prediction-down') ||
+                                        circle.style.background);
+                    });
+                });
+                
+                if ((hasRealData && this.backtestTableRendered) || (hasRealData && !hasValidData)) {
+                    console.log('表格已有有效內容且新數據無效，拒絕覆蓋');
+                    return;
+                }
+                
+                // 只有在真正有有效新數據時才清空表格
+                console.log('清空表格並開始重新渲染，hasRealData:', hasRealData, 'hasValidData:', hasValidData);
+                
+                // 清空現有內容
+                tbody.innerHTML = '';
+
+                // 為每個策略創建一行
+                strategies.forEach(strategy => {
+                    console.log(`渲染策略: ${strategy.name}`, strategy.data);
+                    if (!strategy.data) {
+                        console.warn(`策略 ${strategy.name} 無數據`);
+                        return;
+                    }
+
+                    const row = document.createElement('tr');
+                    row.dataset.strategy = strategy.key;
+
+                    // 第一列：策略名稱
+                    const nameCell = document.createElement('td');
+                    nameCell.className = 'strategy-name';
+                    nameCell.textContent = strategy.name;
+                    row.appendChild(nameCell);
+
+                    // 第二列：勝率
+                    const winrateCell = document.createElement('td');
+                    winrateCell.className = 'strategy-winrate';
+                    const rate = parseFloat(strategy.data.winRate || 0);
+                    const winrateClass = rate >= 55 ? 'winrate-high' : rate >= 50 ? 'winrate-medium' : 'winrate-low';
+                    winrateCell.innerHTML = `<span class="${winrateClass}">${strategy.data.winRate}%</span><br><span style="font-size: 10px; color: #666;">${strategy.data.wins}/${strategy.data.total}</span>`;
+                    row.appendChild(winrateCell);
+
+                    // 總共50列：當前局(1) + 前1局(1) + 48局統計(48) = 50
+                    const history = strategy.data.history || [];
+                    console.log(`${strategy.name} history 長度:`, history.length);
+                    
+                    // 渲染50個格子，對應完整的時間軸
+                    for (let i = 0; i < 50; i++) {
+                        const epochCell = document.createElement('td');
+                        epochCell.className = 'epoch-result';
+                        epochCell.dataset.epochIndex = i;
+
+                        if (history[i]) {
+                            const prediction = history[i].prediction; // 'UP' or 'DOWN'
+                            const result = history[i].result; // 'UP' or 'DOWN' or null
+                            const isWin = history[i].isWin; // true/false/null
+
+                            // 特殊處理：第3格（i=0）是下一局預測，只在鎖倉前5秒才顯示
+                            if (i === 0) {
+                                // 檢查當前是否在鎖倉前5秒
+                                const currentRound = this.state.currentRound;
+                                const now = Math.floor(Date.now() / 1000);
+                                const timeUntilLock = currentRound ? (currentRound.lockTimestamp - now) : 999999;
+                                
+                                if (timeUntilLock > 5 || timeUntilLock < 0) {
+                                    // 不在最後5秒，顯示小點
+                                    epochCell.innerHTML = '<span class="no-prediction" style="color: #333; font-size: 8px;" title="下一局預測將在鎖倉前5秒顯示">·</span>';
+                                    row.appendChild(epochCell);
+                                    continue; // 跳過後續處理
+                                }
+                                // 在最後5秒，繼續顯示預測
+                            }
+
+                            // 創建預測圓圈
+                            const circle = document.createElement('div');
+                            circle.className = 'prediction-circle';
+                            
+                            // 根據時間軸設置背景色：
+                            // i=0: 下一局預測（鎖倉前5秒才顯示），永遠無背景色
+                            // i=1: 當前局預測，永遠無背景色（結果未出）  
+                            // i>=2: 歷史局（48局統計範圍），才顯示背景色
+                            let hasBackground = false;
+                            if (i >= 2 && result) {
+                                hasBackground = true;
+                                if (result === 'UP') {
+                                    epochCell.classList.add('result-bg-up');
+                                } else if (result === 'DOWN') {
+                                    epochCell.classList.add('result-bg-down');
+                                }
+                            }
+
+                            // 設置圓圈顏色：如果預測正確且有背景色，使用更融合的顏色
+                            if (prediction === 'UP') {
+                                if (hasBackground && result === 'UP' && isWin) {
+                                    // 預測正確，使用與背景更融合的綠色
+                                    circle.style.background = '#2d5a2d';
+                                } else {
+                                    circle.classList.add('prediction-up');
+                                }
+                            } else if (prediction === 'DOWN') {
+                                if (hasBackground && result === 'DOWN' && isWin) {
+                                    // 預測正確，使用與背景更融合的紅色
+                                    circle.style.background = '#5a2d2d';
+                                } else {
+                                    circle.classList.add('prediction-down');
+                                }
+                            } else {
+                                circle.classList.add('prediction-none');
+                            }
+
+                            epochCell.appendChild(circle);
+
+                            // 添加 tooltip 顯示詳情
+                            let tooltipText = `局次: ${history[i].epoch || 'N/A'}\n預測: ${prediction || 'N/A'}\n結果: ${result || '未知'}`;
+                            if (i === 0) {
+                                tooltipText += '\n[下一局預測 - 鎖倉前5秒顯示]';
+                            } else if (i === 1) {
+                                tooltipText += '\n[當前局預測 - 無背景色]';
+                            } else if (isWin !== null) {
+                                tooltipText += `\n[歷史局 - 統計範圍] ${isWin ? '✓ 勝' : '✗ 敗'}`;
+                            }
+                            epochCell.title = tooltipText;
+                        } else {
+                            // 無數據
+                            if (i === 0) {
+                                // 第3格：下一局預測，大部分時間是空的
+                                epochCell.innerHTML = '<span class="no-prediction" style="color: #333; font-size: 8px;" title="下一局預測將在鎖倉前5秒顯示">·</span>';
+                            } else {
+                                epochCell.innerHTML = '<span class="no-prediction">-</span>';
+                            }
+                        }
+
+                        row.appendChild(epochCell);
+                    }
+
+                    tbody.appendChild(row);
+                });
+
+                console.log('📊 回測表格已更新');
+                this.backtestTableRendered = true;
+            }
+            
+            // 更新回測表格第3格（i=0），用於在鎖倉前5秒動態顯示預測
+            updateBacktestTableColumn0() {
+                const table = document.getElementById('backtestTable');
+                if (!table) return;
+                
+                const tbody = table.querySelector('tbody');
+                if (!tbody) return;
+                
+                // 檢查當前是否在鎖倉前5秒
+                const currentRound = this.state.currentRound;
+                if (!currentRound) return;
+                
+                const now = Math.floor(Date.now() / 1000);
+                const timeUntilLock = currentRound.lockTimestamp - now;
+                
+                // 只在鎖倉前5秒內處理
+                if (timeUntilLock > 5 || timeUntilLock < 0) return;
+                
+                // 更新所有策略的第3格（i=0）
+                const rows = tbody.querySelectorAll('tr');
+                rows.forEach(row => {
+                    const firstEpochCell = row.querySelector('td.epoch-result[data-epoch-index="0"]');
+                    if (!firstEpochCell) return;
+                    
+                    // 如果已經顯示了預測圓圈，就不用再更新
+                    if (firstEpochCell.querySelector('.prediction-circle')) return;
+                    
+                    // 從行的 data-strategy 屬性取得策略名稱
+                    const strategyKey = row.dataset.strategy;
+                    if (!strategyKey) return;
+                    
+                    // 從最新的回測數據中取得預測
+                    // 這裡需要從WebSocket收到的最新 backtest 數據中讀取
+                    // 我們在 renderBacktestTable 時已經儲存了這些數據
+                    if (!this.latestBacktestData || !this.latestBacktestData.strategies) return;
+                    
+                    const strategy = this.latestBacktestData.strategies[strategyKey];
+                    if (!strategy || !strategy.history || !strategy.history[0]) return;
+                    
+                    const prediction = strategy.history[0].prediction;
+                    if (!prediction) return;
+                    
+                    // 創建預測圓圈
+                    const circle = document.createElement('div');
+                    circle.className = 'prediction-circle';
+                    
+                    if (prediction === 'UP') {
+                        circle.classList.add('prediction-up');
+                    } else if (prediction === 'DOWN') {
+                        circle.classList.add('prediction-down');
+                    }
+                    
+                    // 清空原有內容並添加新圓圈
+                    firstEpochCell.innerHTML = '';
+                    firstEpochCell.appendChild(circle);
+                    firstEpochCell.title = `下一局預測: ${prediction}\n[鎖倉前5秒顯示]`;
+                });
+            }
+
+            // ========================================
+            // 實時預測處理
+            // ========================================
+
+            handleLivePredictions(data) {
+                if (!data || !data.strategies) return;
+                
+                console.log('🔮 收到實時預測:', data);
+
+                // 只處理動量策略（效能最佳）
+                const momentum = data.strategies.momentum;
+                if (momentum) {
+                    // 更新預測結果
+                    this.elements.momentumPrediction.textContent = momentum.prediction;
+                    this.elements.momentumPrediction.style.color = momentum.prediction === 'UP' ? '#4CAF50' : '#F44336';
+                    
+                    // 更新信心度指標
+                    let confidenceText = '中等信心';
+                    let confidenceColor = '#666';
+                    
+                    if (momentum.confidence === 'high') {
+                        confidenceText = '高信心';
+                        confidenceColor = '#4CAF50';
+                    } else if (momentum.confidence === 'low') {
+                        confidenceText = '低信心';
+                        confidenceColor = '#ff9800';
+                    }
+                    
+                    this.elements.predictionConfidence.textContent = confidenceText;
+                    this.elements.predictionConfidence.style.color = confidenceColor;
+                    
+                    // 更新理由
+                    if (momentum.reasons && momentum.reasons.length > 0) {
+                        this.elements.momentumReasons.style.display = 'block';
+                        this.elements.momentumReasonsText.textContent = momentum.reasons.join('、');
+                    } else {
+                        this.elements.momentumReasons.style.display = 'none';
+                        this.elements.momentumReasonsText.textContent = '--';
+                    }
+
+                    console.log(`🎯 動量預測: ${momentum.prediction} (信心度: ${momentum.confidence})`);
+                }
+            }
+
+            handleTxBenchmark(data) {
+                // 累積近 100 筆樣本
+                if (!this.txBenchmarks) this.txBenchmarks = [];
+                this.txBenchmarks.push(data);
+                if (this.txBenchmarks.length > 100) this.txBenchmarks.shift();
+
+                const samples = this.txBenchmarks.filter(x => x && typeof x.total_ms === 'number').map(x => x.total_ms);
+                if (samples.length === 0) return;
+                samples.sort((a,b)=>a-b);
+                const p50 = samples[Math.floor(samples.length * 0.5)] || samples[0];
+                const p90 = samples[Math.floor(samples.length * 0.9)] || samples[samples.length-1];
+                this.elements.txP50.textContent = p50;
+                this.elements.txP90.textContent = p90;
+
+                // 建議 δ：以成功率 >= 90% 的最小 delta
+                const byDelta = new Map();
+                for (const x of this.txBenchmarks) {
+                    if (!x || x.delta == null) continue;
+                    const d = x.delta;
+                    const s = byDelta.get(d) || { ok: 0, total: 0 };
+                    s.total += 1; if (x.success) s.ok += 1;
+                    byDelta.set(d, s);
+                }
+                let best = null;
+                for (const [d, s] of Array.from(byDelta.entries()).sort((a,b)=>a[0]-b[0])) {
+                    const rate = s.total ? (s.ok / s.total) : 0;
+                    if (rate >= 0.9) { best = d; break; }
+                }
+                this.elements.txDelta.textContent = best != null ? best : '--';
+            }
+
+            // ========================================
+            // 下注數據處理
+            // ========================================
+
+            handleBetsData(betsData, source) {
+                if (this.isQueryingRealbet && source === 'realtime') {
+                    if (betsData.length === 0) {
+                        this.isQueryingRealbet = false;
+                        this.wsManager.send({ type: 'get_historical_bets', epoch: this.queryEpoch });
+                        return;
+                    } else {
+                        this.isQueryingRealbet = false;
+                    }
+                }
+
+                // 強制過濾：只接受當前觀看局次的數據
+                const currentViewingEpoch = parseInt(this.state.viewingEpoch);
+                if (!currentViewingEpoch) {
+                    console.warn('⚠️ viewingEpoch 未設定，忽略數據');
+                    return;
+                }
+
+                // 嚴格過濾：只保留完全匹配當前局次的下注
+                const newBets = betsData.filter(bet => {
+                    const betEpoch = parseInt(bet.epoch);
+                    if (betEpoch !== currentViewingEpoch) {
+                        console.log(`🚫 拒絕不匹配的下注: epoch ${betEpoch} (當前觀看: ${currentViewingEpoch})`);
+                        return false;
+                    }
+                    return true;
+                });
+
+                const existingKeys = new Set(this.state.bets.map(bet => this.getBetKey(bet)));
+                const uniqueNewBets = newBets.filter(bet => !existingKeys.has(this.getBetKey(bet)));
+
+                if (source === 'historical') {
+                    this.state.setBets(newBets);
+                } else {
+                    this.state.setBets([...this.state.bets, ...uniqueNewBets]);
+                }
+
+                this.state.calculateStats();
+                this.renderBets();
+
+                if (this.state.viewingEpoch && this.state.bets.length > 0) {
+                    this.state.saveToCache(parseInt(this.state.viewingEpoch), { bets: [...this.state.bets] });
+                }
+            }
+
+            handleNewBet(betData) {
+                if (!this.state.currentRound || !this.state.viewingEpoch) return;
+
+                const betEpoch = parseInt(betData.epoch);
+                const viewingEpoch = parseInt(this.state.viewingEpoch);
+                const currentRoundEpoch = parseInt(this.state.currentRound.epoch);
+
+                // 檢查是否在歷史模式（觀看舊局次）
+                const isHistoryMode = (viewingEpoch !== currentRoundEpoch);
+
+                if (isHistoryMode) {
+                    console.log(`🚫 歷史模式中，忽略即時下注: epoch ${betEpoch}`);
+                    return;
+                }
+
+                // 如果收到新局次的下注，自動切換到新局次
+                if (betEpoch !== viewingEpoch) {
+                    if (betEpoch > viewingEpoch) {
+                        console.log(`🔄 收到新局次下注 (${betEpoch})，自動切換！`);
+                        this.loadEpochData(betEpoch);
+                        return;
+                    } else {
+                        console.log(`🚫 拒絕舊局次下注: epoch ${betEpoch} (當前觀看: ${viewingEpoch})`);
+                        return;
+                    }
+                }
+
+                const betKey = this.getBetKey(betData);
+                const existingBet = this.state.bets.find(bet => this.getBetKey(bet) === betKey);
+
+                if (existingBet) return;
+
+                this.state.addBet(betData);
+                this.state.calculateStats();
+
+                // 使用平滑插入方式，不觸發整個列表重排
+                this.insertNewBetSmoothly(betData);
+
+                if (this.state.viewingEpoch) {
+                    this.state.saveToCache(parseInt(this.state.viewingEpoch), { bets: [...this.state.bets] });
+                }
+            }
+
+            handleBetAnalysis(analysisData) {
+                console.log('🔍 handleBetAnalysis 被調用，參數:', analysisData);
+
+                // 檢查是否屬於當前觀看的局次
+                const currentViewingEpoch = parseInt(this.state.viewingEpoch);
+                console.log('  當前觀看局次:', currentViewingEpoch);
+
+                if (!currentViewingEpoch) {
+                    console.log('⚠️ 無法更新分析：viewingEpoch 未設定');
+                    return;
+                }
+
+                // 更新 state.bets 中的分析數據
+                const walletAddress = analysisData.wallet_address?.toLowerCase();
+                console.log('  錢包地址:', walletAddress);
+
+                if (!walletAddress) {
+                    console.log('⚠️ 無法更新分析：wallet_address 無效');
+                    return;
+                }
+
+                console.log(`  當前 state.bets 數量: ${this.state.bets.length}`);
+
+                let updated = false;
+                this.state.bets.forEach((bet, index) => {
+                    if (bet.wallet_address.toLowerCase() === walletAddress) {
+                        console.log(`  ✓ 找到匹配的下注 [${index}]`);
+                        this.state.bets[index].analysis = analysisData.analysis;
+                        updated = true;
+                    }
+                });
+
+                if (!updated) {
+                    console.log(`⚠️ 找不到對應的下注記錄: ${walletAddress.substring(0, 8)}...`);
+                    console.log('  現有錢包:', this.state.bets.map(b => b.wallet_address.substring(0, 8)).join(', '));
+                    return;
+                }
+
+                // 立即更新 DOM 中對應的項目
+                console.log(`📊 收到並更新分析: ${walletAddress.substring(0, 8)}... (12局得分: ${analysisData.analysis?.short_12_rounds?.score || '-'}%)`);
+
+                // 先更新內容
+                this.updateBetAnalysisInDOM(walletAddress, analysisData.analysis);
+
+                // 使用防抖重新排序（500ms 後），避免頻繁重排
+                this.scheduleReposition();
+            }
+
+            updateBetAnalysisInDOM(walletAddress, analysisData) {
+                const walletKey = walletAddress.toLowerCase();
+                const items = this.elements.betsContent.querySelectorAll(`.bet-item[data-wallet-lc="${walletKey}"]`);
+
+                if (items.length === 0) return;
+
+                items.forEach((item) => {
+                    const walletDiv = item.querySelector('.bet-wallet');
+                    const analysisDiv = item.querySelector('.wallet-analysis');
+
+                    if (!walletDiv || !analysisDiv) return;
+
+                    const originalAddress = item.dataset.wallet;
+                    const short12 = analysisData.short_12_rounds;
+                    const mid48 = analysisData.mid_48_rounds;
+                    const walletTags = analysisData.wallet_tags;
+
+                    let statsHTML = '';
+                    if (short12) {
+                        statsHTML += `
+                            <div style="font-size: 11px; margin-top: 2px; line-height: 1.2;">
+                                <b>近12局:</b> 得分: <b style="color: ${Utils.getScoreColor(short12.score)};">${Utils.formatScore(short12.score)}</b> |
+                                盈虧: <b style="color: ${Utils.getProfitLossColor(short12.profit_loss)};">${Utils.formatProfitLoss(short12.profit_loss)}</b>
+                            </div>
+                        `;
+                    }
+                    if (mid48) {
+                        statsHTML += `
+                            <div style="font-size: 11px; margin-top: 1px; color: #aaa; line-height: 1.2;">
+                                <b>近48局:</b> 得分: <span style="color: ${Utils.getScoreColor(mid48.score)};">${Utils.formatScore(mid48.score)}</span> |
+                                盈虧: <span style="color: ${Utils.getProfitLossColor(mid48.profit_loss)};">${Utils.formatProfitLoss(mid48.profit_loss)}</span>
+                            </div>
+                        `;
+                    }
+
+                    // 直接更新，不要淡入淡出效果
+                    walletDiv.innerHTML = `
+                        <div>${Utils.formatWallet(originalAddress, walletTags)}</div>
+                        ${statsHTML}
+                    `;
+
+                    if (analysisData.chart_data) {
+                        const chartSVG = this.betRenderer.chartRenderer.generate(analysisData.chart_data);
+                        analysisDiv.innerHTML = chartSVG;
+                    }
+                });
+            }
+
+            getBetKey(bet) {
+                const txHash = bet.tx_hash || bet.txHash || '';
+                return txHash || `${bet.wallet_address}-${bet.epoch}-${bet.bet_time || bet.bet_ts}-${bet.amount || bet.bet_amount}`;
+            }
+
+            // ========================================
+            // 渲染邏輯
+            // ========================================
+
+            renderBets() {
+                // 二次過濾：確保 state.bets 中只有當前局次的數據
+                const currentViewingEpoch = parseInt(this.state.viewingEpoch);
+                if (currentViewingEpoch) {
+                    const filteredBets = this.state.bets.filter(bet => {
+                        const betEpoch = parseInt(bet.epoch);
+                        if (betEpoch !== currentViewingEpoch) {
+                            console.warn(`⚠️ 渲染時發現不匹配的下注: epoch ${betEpoch} (應為: ${currentViewingEpoch})，已移除`);
+                            return false;
+                        }
+                        return true;
+                    });
+                    if (filteredBets.length !== this.state.bets.length) {
+                        this.state.setBets(filteredBets);
+                        this.state.calculateStats();
+                    }
+                }
+
+                if (this.state.bets.length === 0) {
+                    this.ui.showNoBets();
+                    return;
+                }
+
+                const existingNodes = new Map();
+                this.elements.betsContent.querySelectorAll('.bet-item').forEach(node => {
+                    const txHash = node.dataset.txHash;
+                    if (txHash) existingNodes.set(txHash, node);
+                });
+
+                const analysis = this.buildAnalysisMap();
+                const sortedBets = this.sortBets(analysis);
+
+                const newNodes = [];
+                const tempDiv = document.createElement('div');
+                let lastHadScore = null;
+                let separatorInserted = false;
+
+                sortedBets.forEach((bet, index) => {
+                    const txHash = bet.tx_hash || bet.txHash || '';
+                    const scores = this.getScores(analysis[bet.wallet_address.toLowerCase()]);
+                    const hasScore = scores.short12 !== null;
+
+                    // 檢測交界處：從有得分變成無得分
+                    if (!separatorInserted && lastHadScore === true && hasScore === false) {
+                        const separator = document.createElement('div');
+                        separator.className = 'score-separator';
+                        newNodes.push(separator);
+                        separatorInserted = true;
+                    }
+
+                    lastHadScore = hasScore;
+
+                    if (existingNodes.has(txHash)) {
+                        newNodes.push(existingNodes.get(txHash));
+                        existingNodes.delete(txHash);
+                    } else {
+                        const html = this.betRenderer.generateBetHTML(bet, analysis, false);
+                        tempDiv.innerHTML = html;
+                        const newNode = tempDiv.firstElementChild;
+                        if (newNode) {
+                            newNode.classList.add('fade-in');
+                        }
+                        newNodes.push(newNode);
+                    }
+                });
+
+                this.elements.betsContent.replaceChildren(...newNodes);
+
+                this.highlightManager.applyToAllElements(this.elements.betsContent);
+                this.ui.updateStats(this.state.stats);
+            }
+
+            buildAnalysisMap() {
+                const analysis = {};
+                this.state.bets.forEach(bet => {
+                    if (bet.analysis) {
+                        analysis[bet.wallet_address.toLowerCase()] = bet.analysis;
+                    }
+                });
+                console.log(`📋 分析地圖：共 ${Object.keys(analysis).length} 個錢包有分析數據`);
+                return analysis;
+            }
+
+            sortBets(analysis) {
+                const sorted = [...this.state.bets].sort((a, b) => {
+                    const aScores = this.getScores(analysis[a.wallet_address.toLowerCase()]);
+                    const bScores = this.getScores(analysis[b.wallet_address.toLowerCase()]);
+
+                    // 無數據的排在最後
+                    const aHasData = aScores.short12 !== null;
+                    const bHasData = bScores.short12 !== null;
+
+                    if (!aHasData && !bHasData) return 0;
+                    if (!aHasData) return 1;  // a 無數據，排後面
+                    if (!bHasData) return -1; // b 無數據，排後面
+
+                    // 都有數據：優先比較12局勝率（高的在上 = b-a 降序）
+                    if (aScores.short12 !== bScores.short12) {
+                        return bScores.short12 - aScores.short12; // b大時返回正數，a排後面 = 大在前
+                    }
+
+                    // 12局勝率相同，比較48局勝率（高的在上 = b-a 降序）
+                    const aHas48 = aScores.mid48 !== null;
+                    const bHas48 = bScores.mid48 !== null;
+
+                    if (!aHas48 && !bHas48) return 0;
+                    if (!aHas48) return 1;  // a 無48局數據，排後面
+                    if (!bHas48) return -1; // b 無48局數據，排後面
+
+                    if (aScores.mid48 !== bScores.mid48) {
+                        return bScores.mid48 - aScores.mid48; // b大時返回正數，a排後面 = 大在前
+                    }
+
+                    // 勝率完全相同，按下注時間降序（最新的在前）
+                    const aTime = new Date(a.bet_time || a.bet_ts).getTime();
+                    const bTime = new Date(b.bet_time || b.bet_ts).getTime();
+                    return bTime - aTime;
+                });
+
+                // 調試日誌：顯示前5筆的排序結果
+                console.log('📊 排序結果（前5筆）:');
+                sorted.slice(0, 5).forEach((bet, idx) => {
+                    const scores = this.getScores(analysis[bet.wallet_address.toLowerCase()]);
+                    console.log(`  ${idx + 1}. ${bet.wallet_address.substring(0, 8)}... - 12局: ${scores.short12 ?? '-'}%, 48局: ${scores.mid48 ?? '-'}%`);
+                });
+
+                return sorted;
+            }
+
+            getScores(analysisData) {
+                let short12 = null;
+                let mid48 = null;
+
+                if (analysisData && analysisData.short_12_rounds && analysisData.short_12_rounds.total_bets > 0) {
+                    short12 = analysisData.short_12_rounds.score;
+                }
+                if (analysisData && analysisData.mid_48_rounds && analysisData.mid_48_rounds.total_bets > 0) {
+                    mid48 = analysisData.mid_48_rounds.score;
+                }
+
+                return { short12, mid48 };
+            }
+
+            insertNewBetSmoothly(betData) {
+                const analysis = this.buildAnalysisMap();
+                const newBetHTML = this.betRenderer.generateBetHTML(betData, analysis, true);
+                const betsContainer = this.elements.betsContent;
+
+                if (betsContainer.innerHTML.includes('no-data') || betsContainer.children.length === 0) {
+                    betsContainer.innerHTML = newBetHTML;
+                    const newItem = betsContainer.firstElementChild;
+                    if (newItem) {
+                        this.highlightManager.applyToElement(newItem, betData.wallet_address);
+                    }
+                } else {
+                    // 找到分隔線位置
+                    const separator = betsContainer.querySelector('.score-separator');
+
+                    if (separator) {
+                        // 插入到分隔線之後（無數據區）
+                        separator.insertAdjacentHTML('afterend', newBetHTML);
+                    } else {
+                        // 沒有分隔線，插入到最底部
+                        betsContainer.insertAdjacentHTML('beforeend', newBetHTML);
+                    }
+
+                    // 找到剛插入的項目
+                    const allItems = betsContainer.querySelectorAll('.bet-item');
+                    const newItem = Array.from(allItems).find(item =>
+                        item.dataset.wallet === betData.wallet_address &&
+                        item.dataset.txHash === (betData.tx_hash || betData.txHash)
+                    );
+
+                    if (newItem) {
+                        newItem.classList.add('fade-in');
+                        newItem.style.opacity = '0';
+                        newItem.style.transform = 'translateY(10px)';
+
+                        // 從底部滑入並淡入
+                        setTimeout(() => {
+                            newItem.style.transition = 'opacity 0.4s ease-out, transform 0.4s ease-out';
+                            newItem.style.opacity = '1';
+                            newItem.style.transform = 'translateY(0)';
+
+                            // 清理樣式
+                            setTimeout(() => {
+                                newItem.style.transition = '';
+                                newItem.style.transform = '';
+                            }, 400);
+                        }, 50);
+
+                        this.highlightManager.applyToElement(newItem, betData.wallet_address);
+                    }
+
+                    // 限制顯示數量
+                    const betItems = betsContainer.querySelectorAll('.bet-item');
+                    if (betItems.length > 100) {
+                        for (let i = 100; i < betItems.length; i++) {
+                            betItems[i].style.transition = 'opacity 0.3s ease-in-out';
+                            betItems[i].style.opacity = '0';
+                            setTimeout(() => {
+                                if (betItems[i].parentNode) {
+                                    betItems[i].remove();
+                                }
+                            }, 300);
+                        }
+                    }
+                }
+
+                this.ui.updateStats(this.state.stats);
+            }
+
+            scheduleReposition() {
+                // 防抖：800ms 內多次調用只執行最後一次（延長時間讓數據都到齊）
+                if (this.repositionTimer) {
+                    clearTimeout(this.repositionTimer);
+                }
+
+                this.repositionTimer = setTimeout(() => {
+                    this.repositionBetsWithAnimation();
+                    this.repositionTimer = null;
+                }, 800);
+            }
+
+            repositionBetsWithAnimation() {
+                console.log('🔄 開始重新排序...');
+                const analysis = this.buildAnalysisMap();
+                const sortedBets = this.sortBets(analysis);
+
+                // 使用 getBetKey 作為唯一標識（更可靠）
+                const currentPositions = new Map();
+                this.elements.betsContent.querySelectorAll('.bet-item').forEach(item => {
+                    const wallet = item.dataset.walletLc;
+                    const epoch = item.dataset.epoch;
+                    if (wallet && epoch) {
+                        const key = `${wallet}-${epoch}`;
+                        currentPositions.set(key, {
+                            top: item.getBoundingClientRect().top,
+                            element: item
+                        });
+                    }
+                });
+
+                // 建立現有節點映射
+                const existingNodes = new Map();
+                this.elements.betsContent.querySelectorAll('.bet-item').forEach(node => {
+                    const wallet = node.dataset.walletLc;
+                    const epoch = node.dataset.epoch;
+                    if (wallet && epoch) {
+                        const key = `${wallet}-${epoch}`;
+                        existingNodes.set(key, node);
+                    }
+                });
+
+                const newNodes = [];
+                let lastHadScore = null;
+                let separatorInserted = false;
+
+                sortedBets.forEach((bet) => {
+                    const wallet = bet.wallet_address.toLowerCase();
+                    const epoch = bet.epoch;
+                    const key = `${wallet}-${epoch}`;
+
+                    const scores = this.getScores(analysis[wallet]);
+                    const hasScore = scores.short12 !== null;
+
+                    // 插入分隔線
+                    if (!separatorInserted && lastHadScore === true && hasScore === false) {
+                        const separator = document.createElement('div');
+                        separator.className = 'score-separator';
+                        newNodes.push(separator);
+                        separatorInserted = true;
+                    }
+
+                    lastHadScore = hasScore;
+
+                    // 添加對應的節點
+                    if (existingNodes.has(key)) {
+                        newNodes.push(existingNodes.get(key));
+                        existingNodes.delete(key);
+                    }
+                });
+
+                console.log(`📊 排序完成：共 ${newNodes.length} 個項目`);
+
+                // 平滑移動動畫
+                this.elements.betsContent.replaceChildren(...newNodes);
+
+                // 計算新位置並添加動畫
+                newNodes.forEach(node => {
+                    if (node.classList && node.classList.contains('bet-item')) {
+                        const wallet = node.dataset.walletLc;
+                        const epoch = node.dataset.epoch;
+                        if (wallet && epoch) {
+                            const key = `${wallet}-${epoch}`;
+                            if (currentPositions.has(key)) {
+                                const oldTop = currentPositions.get(key).top;
+                                const newTop = node.getBoundingClientRect().top;
+                                const delta = oldTop - newTop;
+
+                                if (Math.abs(delta) > 1) {
+                                    // 先移動到舊位置
+                                    node.style.transform = `translateY(${delta}px)`;
+                                    node.style.transition = 'none';
+
+                                    // 強制重繪
+                                    node.offsetHeight;
+
+                                    // 平滑移動到新位置（使用 ease-in-out 更柔和）
+                                    node.style.transition = 'transform 0.5s cubic-bezier(0.4, 0.0, 0.2, 1)';
+                                    node.style.transform = 'translateY(0)';
+
+                                    // 清理
+                                    setTimeout(() => {
+                                        node.style.transition = '';
+                                        node.style.transform = '';
+                                    }, 500);
+                                }
+                            }
+                        }
+                    }
+                });
+
+                this.highlightManager.applyToAllElements(this.elements.betsContent);
+            }
+
+            // ========================================
+            // 局次導航
+            // ========================================
+
+            loadEpochData(epoch) {
+                epoch = parseInt(epoch);
+                this.state.setViewingEpoch(epoch);
+
+                const isHistory = (this.state.currentRound &&
+                                  parseInt(epoch) !== parseInt(this.state.currentRound.epoch));
+
+                this.ui.updateRoundInfo(epoch, isHistory ? '歷史模式' : '即時模式');
+
+                // 清空當前數據，避免顯示前一局的數據
+                this.state.setBets([]);
+                this.state.calculateStats();
+                this.ui.updateStats(this.state.stats);
+
+                const cached = this.state.getFromCache(epoch);
+                if (cached && cached.bets && cached.bets.length > 0) {
+                    console.log(`使用緩存: epoch ${epoch} (${cached.bets.length} 筆)`);
+                    this.state.setBets(cached.bets);
+                    this.state.calculateStats();
+                    this.renderBets();
+
+                    if (isHistory && cached.roundInfo) {
+                        this.handleHistoricalRound(cached.roundInfo);
+                    }
+
+                    this.ui.updateNavigationButtons(epoch,
+                        this.state.currentRound ? parseInt(this.state.currentRound.epoch) : 0);
+                    return;
+                }
+
+                console.log(`載入 epoch ${epoch}`);
+                this.ui.clearBetsDisplay();
+
+                this.isQueryingRealbet = true;
+                this.queryEpoch = epoch;
+                this.wsManager.send({ type: 'get_realtime_bets', epoch: epoch });
+
+                if (isHistory) {
+                    this.wsManager.send({ type: 'get_historical_round', epoch: epoch });
+                }
+
+                this.ui.updateNavigationButtons(epoch,
+                    this.state.currentRound ? parseInt(this.state.currentRound.epoch) : 0);
+            }
+
+            navigateEpoch(direction) {
+                if (!this.state.currentRound) return;
+                const currentEpoch = parseInt(this.state.viewingEpoch) || 0;
+                const targetEpoch = currentEpoch + direction;
+                if (targetEpoch < 1) return;
+                this.loadEpochData(targetEpoch);
+            }
+
+            // ========================================
+            // 高亮管理
+            // ========================================
+
+            onBetsContentClick(e) {
+                const walletEl = e.target.closest('.bet-wallet');
+                if (!walletEl) return;
+                
+                const itemEl = walletEl.closest('.bet-item');
+                const wallet = itemEl?.dataset.wallet;
+                if (!wallet) return;
+
+                this.highlightManager.toggle(wallet);
+                this.applyHighlightForWallet(wallet);
+            }
+
+            applyHighlightForWallet(walletAddress) {
+                const key = walletAddress.toLowerCase();
+                const rows = this.elements.betsContent.querySelectorAll(`.bet-item[data-wallet-lc="${key}"]`);
+                rows.forEach(row => {
+                    this.highlightManager.applyToElement(row, walletAddress);
+                });
+            }
+
+            clearAllHighlights() {
+                const allBetItems = this.elements.betsContent.querySelectorAll('.bet-item');
+                allBetItems.forEach(item => {
+                    Object.values(this.highlightManager.classMap).forEach(cls => {
+                        item.classList.remove(cls);
+                    });
+                });
+
+                this.highlightManager.clearAll();
+                console.log('已清除所有高亮');
+            }
+        }
+
+        // ========================================
+        // 啟動應用
+        // ========================================
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.app = new RealtimeBettingTerminal();
+        });
+
+        window.addEventListener('error', (event) => {
+            console.error('頁面錯誤:', event.error);
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('未處理的 Promise 拒絕:', event.reason);
+        });
+    </script>
+</body>
+</html>

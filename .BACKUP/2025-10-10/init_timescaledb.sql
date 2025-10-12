@@ -6,9 +6,9 @@ CREATE EXTENSION IF NOT EXISTS timescaledb;
 -- ========================================
 CREATE TABLE IF NOT EXISTS round (
     epoch BIGINT NOT NULL,
-  start_time VARCHAR(25) NOT NULL,
-  lock_time VARCHAR(25) NOT NULL,
-  close_time VARCHAR(25) NOT NULL,
+  start_time TIMESTAMPTZ NOT NULL,
+  lock_time TIMESTAMPTZ NOT NULL,
+  close_time TIMESTAMPTZ NOT NULL,
     lock_price NUMERIC(20, 8),
     close_price NUMERIC(20, 8),
   result TEXT,
@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS round (
     PRIMARY KEY (start_time, epoch)
 );
 
+-- 轉換為 Hypertable（時間序列優化）
+SELECT create_hypertable('round', 'start_time', if_not_exists => TRUE);
+
 -- 索引
 CREATE INDEX IF NOT EXISTS idx_round_epoch ON round (epoch);
 
@@ -29,7 +32,7 @@ CREATE INDEX IF NOT EXISTS idx_round_epoch ON round (epoch);
 CREATE TABLE IF NOT EXISTS hisbet (
   tx_hash TEXT NOT NULL,
     epoch BIGINT NOT NULL,
-  bet_time VARCHAR(25) NOT NULL,
+  bet_time TIMESTAMPTZ NOT NULL,
   wallet_address TEXT NOT NULL,
   bet_direction TEXT NOT NULL,
     bet_amount NUMERIC(20, 8) NOT NULL,
@@ -37,6 +40,9 @@ CREATE TABLE IF NOT EXISTS hisbet (
     block_number BIGINT NOT NULL,
     PRIMARY KEY (bet_time, tx_hash)
 );
+
+-- 轉換為 Hypertable
+SELECT create_hypertable('hisbet', 'bet_time', if_not_exists => TRUE);
 
 -- 索引
 CREATE INDEX IF NOT EXISTS idx_hisbet_wallet_epoch ON hisbet (wallet_address, epoch);
@@ -54,13 +60,16 @@ ALTER TABLE hisbet
 CREATE TABLE IF NOT EXISTS realbet (
   tx_hash TEXT NOT NULL,
     epoch BIGINT NOT NULL,
-  bet_time VARCHAR(25) NOT NULL,
+  bet_time TIMESTAMPTZ NOT NULL,
   wallet_address TEXT NOT NULL,
   bet_direction TEXT NOT NULL,
     bet_amount NUMERIC(20, 8) NOT NULL,
     block_number BIGINT NOT NULL,
     PRIMARY KEY (bet_time, tx_hash)
 );
+
+-- 轉換為 Hypertable
+SELECT create_hypertable('realbet', 'bet_time', if_not_exists => TRUE);
 
 -- 索引
 CREATE INDEX IF NOT EXISTS idx_realbet_epoch ON realbet (epoch);
@@ -70,6 +79,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_realbet_tx_hash_unique ON realbet (bet_tim
 ALTER TABLE realbet 
   ADD CONSTRAINT check_realbet_wallet_lowercase 
   CHECK (wallet_address = LOWER(wallet_address));
+
+-- 自動清理策略（可選，7 天後自動刪除）
+-- SELECT add_retention_policy('realbet', INTERVAL '7 days', if_not_exists => TRUE);
 
 -- ========================================
 -- 領獎記錄表
@@ -120,7 +132,7 @@ ALTER TABLE multi_claim
 -- ========================================
 CREATE TABLE IF NOT EXISTS finepoch (
     epoch BIGINT PRIMARY KEY,
-    processed_at VARCHAR(25)
+    processed_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_finepoch_processed ON finepoch (processed_at);
@@ -132,7 +144,7 @@ CREATE TABLE IF NOT EXISTS failed_epochs (
     epoch BIGINT PRIMARY KEY,
     error_message TEXT NOT NULL,
   stage TEXT NOT NULL,
-    failed_at VARCHAR(25) NOT NULL,
+    failed_at TIMESTAMPTZ NOT NULL,
     retry_count INT DEFAULT 0
 );
 
@@ -144,7 +156,7 @@ CREATE INDEX IF NOT EXISTS idx_failed_epochs_time ON failed_epochs (failed_at);
 -- ========================================
 DO $$ 
 BEGIN 
-    RAISE NOTICE '✅ TimescaleDB 表格初始化完成 (時間格式已修改為 VARCHAR)';
+    RAISE NOTICE '✅ TimescaleDB 表格初始化完成';
     RAISE NOTICE '- round: 局次資訊';
     RAISE NOTICE '- hisbet: 歷史下注（永久）';
     RAISE NOTICE '- realbet: 即時下注（暫存）';
