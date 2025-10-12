@@ -264,7 +264,7 @@ const acquireEpochLockAction = ai.defineTool(
       console.log(`Epoch ${epoch} already locked, skipping.`);
       return { success: false, reason: 'locked' };
     }
-    return { success: true };
+    return { success: true, reason: 'lock acquired' };
   }
 );
 
